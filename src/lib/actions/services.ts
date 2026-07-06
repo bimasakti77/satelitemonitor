@@ -371,7 +371,7 @@ export async function deleteAllServices(
       bulk: true,
       count: services.length,
       filters,
-    },
+    } as unknown as Prisma.InputJsonValue,
   });
 
   revalidatePath("/services");

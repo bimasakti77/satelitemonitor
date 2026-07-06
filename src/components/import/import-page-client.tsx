@@ -100,8 +100,12 @@ export function ImportPageClient({ imports, isAdmin, rollbackableImportId }: Imp
 
   const handleDownloadTemplate = async () => {
     const result = await downloadImportTemplate();
-    if (!result.success || !result.data) {
-      toast.error(result.error ?? "Gagal mengunduh template");
+    if (!result.success) {
+      toast.error(result.error);
+      return;
+    }
+    if (!result.data) {
+      toast.error("Gagal mengunduh template");
       return;
     }
 

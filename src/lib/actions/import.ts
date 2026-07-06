@@ -8,7 +8,7 @@ import { createAuditLog } from "@/lib/audit";
 import { recordServiceHistory } from "@/lib/service-history";
 import { createServiceNotification } from "@/lib/notifications";
 import type { ActionResult } from "./auth";
-import type { IntegrationReadiness, ServiceScope } from "@prisma/client";
+import type { IntegrationReadiness, Prisma, ServiceScope } from "@prisma/client";
 import {
   buildImportTemplateRows,
   IMPORT_TEMPLATE_FILENAME,
@@ -402,7 +402,7 @@ export async function commitImport(importId: string): Promise<ActionResult> {
       insertedCount: inserted,
       updatedCount: updated,
       errorCount: errors,
-      snapshot,
+      snapshot: snapshot as unknown as Prisma.InputJsonValue,
       committedAt: new Date(),
     },
   });
