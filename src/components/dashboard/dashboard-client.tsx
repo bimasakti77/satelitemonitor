@@ -1,0 +1,392 @@
+"use client";
+
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+import {
+  Building2,
+  Calendar,
+  FileSpreadsheet,
+  Layers,
+  ListTree,
+  Printer,
+  Search,
+} from "lucide-react";
+import {
+  ChartCard,
+  ExecutiveUkeChart,
+  IntegrationByUkeChart,
+  IntegrationQuarterChart,
+} from "@/components/dashboard/charts";
+import { KpiCard } from "@/components/dashboard/kpi-card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { exportDashboardExcel, exportDashboardPdf } from "@/lib/dashboard-export";
+import { INTEGRATION_LABELS, SCOPE_LABELS } from "@/lib/constants";
+import type { DashboardServiceItem, ExecutiveDashboardData } from "@/lib/actions/dashboard";
+
+interface DashboardClientProps {
+  data: ExecutiveDashboardData;
+  selectedTahun: string;
+}
+
+function ServicesTableSection({
+  services,
+  filterLabel,
+}: {
+  services: DashboardServiceItem[];
+  filterLabel: string;
+}) {
+  const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
+
+  const ukeTabs = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const s of services) {
+      if (s.ukeCode) map.set(s.ukeCode, s.ukeName ?? s.ukeCode);
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [services]);
+
+  const filteredServices = useMemo(() => {
+    let list = services;
+    if (activeTab !== "all") {
+      list = list.filter((s) => s.ukeCode === activeTab);
+    }
+    const q = search.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((s) => {
+      const haystack = [
+        s.ukeCode,
+        s.ukeName,
+        s.kelompokLayanan,
+        s.jenisLayanan,
+        String(s.tahunPekerjaan),
+        SCOPE_LABELS[s.scope],
+        INTEGRATION_LABELS[s.kesiapanIntegrasi],
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [services, activeTab, search]);
+
+  const countByUke = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const s of services) {
+      if (!s.ukeCode) continue;
+      counts.set(s.ukeCode, (counts.get(s.ukeCode) ?? 0) + 1);
+    }
+    return counts;
+  }, [services]);
+
+  if (services.length === 0) {
+    return (
+      <p className="py-12 text-center text-sm text-muted-foreground">
+        Tidak ada layanan yang sesuai filter
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          type="search"
+          placeholder="Cari UKE, kelompok, jenis layanan, tahun..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="w-full justify-start">
+          <TabsTrigger value="all">Semua ({services.length})</TabsTrigger>
+          {ukeTabs.map(([code, name]) => (
+            <TabsTrigger key={code} value={code} title={name}>
+              {code} ({countByUke.get(code) ?? 0})
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
+      <p className="text-xs text-muted-foreground">
+        Menampilkan {filteredServices.length} dari {services.length} layanan — {filterLabel}
+        {activeTab !== "all" ? ` · UKE ${activeTab}` : ""}
+        {search.trim() ? ` · pencarian "${search.trim()}"` : ""}
+      </p>
+
+      {filteredServices.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          Tidak ada layanan yang cocok dengan filter tab atau pencarian
+        </p>
+      ) : (
+        <div className="rounded-xl border border-border overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">No</TableHead>
+                <TableHead>UKE I</TableHead>
+                <TableHead>Kelompok Layanan</TableHead>
+                <TableHead>Jenis Layanan</TableHead>
+                <TableHead>Tahun</TableHead>
+                <TableHead>Tipe</TableHead>
+                <TableHead>Kesiapan</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredServices.map((s, i) => (
+                <TableRow key={s.id}>
+                  <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                  <TableCell>{s.ukeCode ?? "-"}</TableCell>
+                  <TableCell className="max-w-[140px] truncate">{s.kelompokLayanan}</TableCell>
+                  <TableCell className="font-medium max-w-[260px]">
+                    <Link
+                      href={`/services/${s.id}`}
+                      className="hover:text-primary hover:underline"
+                    >
+                      {s.jenisLayanan}
+                    </Link>
+                  </TableCell>
+                  <TableCell>{s.tahunPekerjaan}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{SCOPE_LABELS[s.scope]}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">
+                      {INTEGRATION_LABELS[s.kesiapanIntegrasi]}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function DashboardClient({ data, selectedTahun }: DashboardClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const updateTahun = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === "all") params.delete("tahun");
+    else params.set("tahun", value);
+    router.push(`/dashboard?${params.toString()}`);
+  };
+
+  const tahunLabel =
+    selectedTahun === "all" ? "Semua Tahun" : `Tahun ${selectedTahun}`;
+
+  const filterLabel = `Belum SuperApps · ${tahunLabel}`;
+
+  const handleExportExcel = () => {
+    try {
+      exportDashboardExcel(data, filterLabel);
+      toast.success("Excel berhasil diunduh");
+    } catch {
+      toast.error("Gagal mengekspor Excel");
+    }
+  };
+
+  const handleExportPdf = () => {
+    try {
+      exportDashboardPdf(data, filterLabel);
+      toast.success("PDF berhasil diunduh");
+    } catch {
+      toast.error("Gagal mengekspor PDF");
+    }
+  };
+
+  const ukeChartHeight = Math.max(280, data.chartByUke.length * 36 + 48);
+  const integrationByUkeHeight = Math.max(
+    280,
+    data.chartIntegrationByUke.length * 36 + 48
+  );
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-foreground">{filterLabel}</p>
+          <p className="text-xs text-muted-foreground">
+            Hanya menampilkan layanan yang belum masuk SuperApps
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={selectedTahun} onValueChange={updateTahun}>
+            <SelectTrigger className="w-[180px]">
+              <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
+              <SelectValue placeholder="Tahun Pekerjaan" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Tahun</SelectItem>
+              {data.years.map((year) => (
+                <SelectItem key={year} value={String(year)}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button type="button" variant="outline" size="sm" onClick={handleExportExcel}>
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            Export Excel
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={handleExportPdf}>
+            <Printer className="mr-2 h-4 w-4" />
+            Export PDF
+          </Button>
+        </div>
+      </div>
+
+      {/* 1. Charts */}
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          1. Visualisasi Data
+        </h2>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <ChartCard
+            title="Layanan per UKE I"
+            description="Jumlah layanan belum SuperApps per unit kerja"
+            contentClassName="p-6 pt-0"
+          >
+            <div style={{ height: ukeChartHeight }}>
+              {data.chartByUke.length > 0 ? (
+                <ExecutiveUkeChart data={data.chartByUke} />
+              ) : (
+                <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                  Tidak ada data
+                </p>
+              )}
+            </div>
+          </ChartCard>
+          <ChartCard
+            title="Kesiapan Integrasi"
+            description="Distribusi target integrasi Q1, Q2, dan Q3"
+          >
+            {data.summary.totalServices > 0 ? (
+              <IntegrationQuarterChart data={data.chartByIntegration} />
+            ) : (
+              <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                Tidak ada data
+              </p>
+            )}
+          </ChartCard>
+        </div>
+        <ChartCard
+          title="Kesiapan Integrasi per UKE I"
+          description="Persentase jenis layanan (kelompok + jenis unik) per target Q1, Q2, dan Q3"
+          contentClassName="p-6 pt-0"
+        >
+          <div style={{ height: integrationByUkeHeight }}>
+            {data.chartIntegrationByUke.length > 0 ? (
+              <IntegrationByUkeChart data={data.chartIntegrationByUke} />
+            ) : (
+              <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                Tidak ada data
+              </p>
+            )}
+          </div>
+        </ChartCard>
+      </section>
+
+      {/* 2. Summary cards */}
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          2. Ringkasan Angka
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <KpiCard
+            title="Jumlah Kelompok Layanan"
+            value={data.summary.totalKelompok}
+            description="Kelompok unik"
+            icon={Layers}
+          />
+          <KpiCard
+            title="Jumlah Jenis Layanan"
+            value={data.summary.totalJenisLayanan}
+            description="Kombinasi kelompok + jenis unik"
+            icon={ListTree}
+          />
+        </div>
+
+        {data.jenisLayananByUke.length > 0 && (
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium text-foreground">
+              Jenis Layanan per UKE I
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Jumlah kombinasi kelompok + jenis layanan unik di setiap unit kerja eselon I
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {data.jenisLayananByUke.map((uke) => (
+                <Card key={uke.code} className="overflow-hidden">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-mono text-xs font-semibold text-primary">
+                          {uke.code}
+                        </p>
+                        <p className="mt-0.5 truncate text-sm text-muted-foreground" title={uke.name}>
+                          {uke.name}
+                        </p>
+                      </div>
+                      <div className="rounded-lg bg-primary/10 p-2 shrink-0">
+                        <Building2 className="h-4 w-4 text-primary" />
+                      </div>
+                    </div>
+                    <p className="mt-3 text-2xl font-bold tracking-tight">{uke.count}</p>
+                    <p className="text-xs text-muted-foreground">kelompok + jenis unik</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* 3. Table */}
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          3. Daftar Jenis Layanan
+        </h2>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Seluruh Jenis Layanan</CardTitle>
+            <CardDescription>
+              {data.summary.totalServices} layanan — {filterLabel}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ServicesTableSection services={data.services} filterLabel={filterLabel} />
+          </CardContent>
+        </Card>
+      </section>
+    </div>
+  );
+}

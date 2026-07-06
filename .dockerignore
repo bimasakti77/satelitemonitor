@@ -1,0 +1,35 @@
+# Dependencies
+node_modules
+npm-debug.log*
+
+# Next.js
+.next
+out
+
+# Git
+.git
+.gitignore
+
+# Env (use docker-compose env instead)
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+.cursor
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Docs & misc
+README.md
+*.md
+agent-transcripts
+
+# OS
+.DS_Store
+Thumbs.db

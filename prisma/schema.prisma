@@ -1,0 +1,190 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMINISTRATOR
+  OPERATOR_UKE
+  EXECUTIVE
+}
+
+enum ServiceScope {
+  INTERNAL
+  EKSTERNAL
+}
+
+enum IntegrationReadiness {
+  Q1
+  Q2
+  Q3
+  NOT_READY
+}
+
+enum HistoryAction {
+  CREATED
+  UPDATED
+  DELETED
+}
+
+enum ImportStatus {
+  PREVIEW
+  COMMITTED
+  ROLLED_BACK
+  FAILED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         UserRole
+  ukeId        String?
+  uke          Uke?     @relation(fields: [ukeId], references: [id])
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  serviceHistories ServiceHistory[]
+  auditLogs        AuditLog[]
+  imports          Import[]
+}
+
+model Uke {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users    User[]
+  services Service[]
+}
+
+model Application {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  vendor      String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Service {
+  id                  String               @id @default(cuid())
+  externalId          String?              @unique
+  kelompokLayanan     String
+  jenisLayanan        String
+  tahunPekerjaan      Int
+  scope               ServiceScope
+  tipeLayananInternal String?
+  sudahSuperApps      Boolean              @default(false)
+  kesiapanIntegrasi   IntegrationReadiness @default(NOT_READY)
+  namaAplikasi        String?
+  detailAplikasi      String?              @db.Text
+  ukeId               String?
+  uke                 Uke?                 @relation(fields: [ukeId], references: [id])
+  isDeleted           Boolean              @default(false)
+  deletedAt           DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  fungsi        ServiceFunction[]
+  histories     ServiceHistory[]
+  notifications Notification[]
+
+  @@index([ukeId])
+  @@index([kelompokLayanan])
+  @@index([tahunPekerjaan])
+  @@index([jenisLayanan])
+  @@index([isDeleted])
+}
+
+model ServiceFunction {
+  id        String   @id @default(cuid())
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  nama      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([serviceId])
+}
+
+model ServiceHistory {
+  id            String        @id @default(cuid())
+  serviceId     String
+  service       Service       @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  action        HistoryAction
+  fieldName     String?
+  previousValue String?       @db.Text
+  newValue      String?       @db.Text
+  snapshot      Json?
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  createdAt     DateTime      @default(now())
+
+  @@index([serviceId])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([entity])
+}
+
+model Import {
+  id               String       @id @default(cuid())
+  filename         String
+  status           ImportStatus @default(PREVIEW)
+  totalRows        Int          @default(0)
+  insertedCount    Int          @default(0)
+  updatedCount     Int          @default(0)
+  skippedCount     Int          @default(0)
+  errorCount       Int          @default(0)
+  validationReport Json?
+  snapshot         Json?
+  userId           String
+  user             User         @relation(fields: [userId], references: [id])
+  committedAt      DateTime?
+  rolledBackAt     DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String?
+  serviceId String?
+  service   Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  type      String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
