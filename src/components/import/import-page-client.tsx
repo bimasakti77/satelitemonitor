@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useActionState } from "react";
 import { toast } from "sonner";
-import { Upload, FileSpreadsheet, CheckCircle, Download } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -55,6 +55,25 @@ const rowStatusBadge: Record<string, "default" | "success" | "warning" | "destru
 export function ImportPageClient({ imports, isAdmin, rollbackableImportId }: ImportPageClientProps) {
   const router = useRouter();
   const [preview, setPreview] = useState<{ importId: string; rows: ImportRow[] } | null>(null);
+  const [committing, setCommitting] = useState(false);
+  const [commitProgress, setCommitProgress] = useState(0);
+
+  useEffect(() => {
+    if (!committing) {
+      setCommitProgress(0);
+      return;
+    }
+
+    setCommitProgress(10);
+    const interval = setInterval(() => {
+      setCommitProgress((current) => {
+        if (current >= 90) return current;
+        return current + Math.random() * 12;
+      });
+    }, 350);
+
+    return () => clearInterval(interval);
+  }, [committing]);
 
   const [state, formAction, pending] = useActionState(
     async (prev: ActionResult<{ importId: string; rows: ImportRow[] }>, formData: FormData) => {
@@ -71,14 +90,27 @@ export function ImportPageClient({ imports, isAdmin, rollbackableImportId }: Imp
   );
 
   const handleCommit = async () => {
-    if (!preview) return;
-    const result = await commitImport(preview.importId);
-    if (result.success) {
-      toast.success("Import berhasil");
-      setPreview(null);
-      router.refresh();
-    } else {
-      toast.error(result.error);
+    if (!preview || committing) return;
+
+    setCommitting(true);
+    setCommitProgress(5);
+
+    try {
+      const result = await commitImport(preview.importId);
+      setCommitProgress(100);
+
+      if (result.success) {
+        toast.success("Import berhasil");
+        setPreview(null);
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    } finally {
+      window.setTimeout(() => {
+        setCommitting(false);
+        setCommitProgress(0);
+      }, 400);
     }
   };
 
@@ -124,6 +156,41 @@ export function ImportPageClient({ imports, isAdmin, rollbackableImportId }: Imp
 
   return (
     <div className="space-y-6">
+      {committing && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/85 backdrop-blur-sm"
+          role="alertdialog"
+          aria-modal="true"
+          aria-busy="true"
+          aria-labelledby="import-commit-title"
+          aria-describedby="import-commit-desc"
+        >
+          <div className="mx-4 w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl">
+            <div className="flex flex-col items-center text-center">
+              <Loader2 className="mb-4 h-10 w-10 animate-spin text-primary" />
+              <h2 id="import-commit-title" className="text-lg font-semibold">
+                Meng-commit import...
+              </h2>
+              <p id="import-commit-desc" className="mt-2 text-sm text-muted-foreground">
+                Data sedang disimpan ke database. Mohon tunggu dan jangan tutup halaman.
+              </p>
+            </div>
+            <div className="mt-6 space-y-2">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Progress</span>
+                <span>{Math.round(commitProgress)}%</span>
+              </div>
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-300 ease-out"
+                  style={{ width: `${Math.min(commitProgress, 100)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -171,9 +238,9 @@ export function ImportPageClient({ imports, isAdmin, rollbackableImportId }: Imp
                   {preview.rows.filter((r) => r.status === "error").length} error
                 </CardDescription>
               </div>
-              <Button onClick={handleCommit}>
+              <Button onClick={handleCommit} disabled={committing}>
                 <CheckCircle className="mr-2 h-4 w-4" />
-                Commit Import
+                {committing ? "Memproses..." : "Commit Import"}
               </Button>
             </div>
           </CardHeader>
