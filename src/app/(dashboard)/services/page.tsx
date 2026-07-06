@@ -7,6 +7,8 @@ import { getUkes } from "@/lib/actions/uke";
 import { getKelompokLayananOptions } from "@/lib/actions/kelompok-layanan";
 import { requireAuth, canWrite } from "@/lib/auth";
 
+export const maxDuration = 60;
+
 interface PageProps {
   searchParams: Promise<Record<string, string | undefined>>;
 }

@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Search, ChevronLeft, ChevronRight, Eye, Trash2 } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Eye, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -64,6 +64,56 @@ export function ServicesTable({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
+  const [deletingAll, setDeletingAll] = useState(false);
+  const [deleteAllProgress, setDeleteAllProgress] = useState(0);
+
+  useEffect(() => {
+    if (!deletingAll) {
+      setDeleteAllProgress(0);
+      return;
+    }
+
+    setDeleteAllProgress(10);
+    const interval = setInterval(() => {
+      setDeleteAllProgress((current) => {
+        if (current >= 90) return current;
+        return current + Math.random() * 12;
+      });
+    }, 350);
+
+    return () => clearInterval(interval);
+  }, [deletingAll]);
+
+  const getCurrentFilters = () => {
+    const params = Object.fromEntries(searchParams.entries());
+    return {
+      search: params.search,
+      ukeId: params.ukeId,
+      kelompokLayanan: params.kelompokLayanan,
+      tahunPekerjaan: params.tahunPekerjaan ? Number(params.tahunPekerjaan) : undefined,
+      scope: params.scope,
+      sudahSuperApps:
+        params.sudahSuperApps === "true"
+          ? true
+          : params.sudahSuperApps === "false"
+            ? false
+            : undefined,
+      kesiapanIntegrasi: params.kesiapanIntegrasi,
+    };
+  };
+
+  const hasActiveFilters = () => {
+    const params = searchParams;
+    return Boolean(
+      params.get("search") ||
+        params.get("ukeId") ||
+        params.get("kelompokLayanan") ||
+        params.get("tahunPekerjaan") ||
+        params.get("scope") ||
+        params.get("sudahSuperApps") ||
+        params.get("kesiapanIntegrasi")
+    );
+  };
 
   const updateParams = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -79,38 +129,48 @@ export function ServicesTable({
     router.push(`/services?${params.toString()}`);
   };
 
-  const handleDeleteAll = () => {
-    if (data.total === 0) return;
+  const handleDeleteAll = async () => {
+    if (data.total === 0 || deletingAll) return;
+
+    const scopeLabel = hasActiveFilters()
+      ? `${data.total} layanan sesuai filter saat ini`
+      : `semua ${data.total} layanan`;
     const message =
       data.total === 1
         ? "Yakin ingin menghapus 1 layanan? Tindakan ini tidak dapat dibatalkan."
-        : `Yakin ingin menghapus semua ${data.total} layanan? Tindakan ini tidak dapat dibatalkan.`;
+        : `Yakin ingin menghapus ${scopeLabel}? Tindakan ini tidak dapat dibatalkan.`;
+
     if (!confirm(message)) return;
 
-    startTransition(async () => {
-      const params = Object.fromEntries(searchParams.entries());
-      const result = await deleteAllServices({
-        search: params.search,
-        ukeId: params.ukeId,
-        kelompokLayanan: params.kelompokLayanan,
-        tahunPekerjaan: params.tahunPekerjaan ? Number(params.tahunPekerjaan) : undefined,
-        scope: params.scope,
-        sudahSuperApps:
-          params.sudahSuperApps === "true"
-            ? true
-            : params.sudahSuperApps === "false"
-              ? false
-              : undefined,
-        kesiapanIntegrasi: params.kesiapanIntegrasi,
-      });
+    setDeletingAll(true);
+    setDeleteAllProgress(5);
+
+    try {
+      const result = await deleteAllServices(getCurrentFilters());
+      setDeleteAllProgress(100);
+
       if (result.success) {
-        toast.success(`${result.data?.count ?? 0} layanan dihapus`);
+        const count = result.data?.count ?? 0;
+        toast.success(
+          count === 1
+            ? "Berhasil menghapus 1 layanan"
+            : `Berhasil menghapus ${count} layanan`
+        );
         router.push("/services");
         router.refresh();
       } else {
-        toast.error(result.error);
+        toast.error(result.error ?? "Gagal menghapus layanan");
       }
-    });
+    } catch {
+      toast.error(
+        "Penghapusan gagal atau terputus (timeout server). Cek data di database, lalu coba lagi atau pecah per filter."
+      );
+    } finally {
+      window.setTimeout(() => {
+        setDeletingAll(false);
+        setDeleteAllProgress(0);
+      }, 400);
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -128,6 +188,43 @@ export function ServicesTable({
 
   return (
     <div className="space-y-4">
+      {deletingAll && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/85 backdrop-blur-sm"
+          role="alertdialog"
+          aria-modal="true"
+          aria-busy="true"
+          aria-labelledby="delete-all-title"
+          aria-describedby="delete-all-desc"
+        >
+          <div className="mx-4 w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl">
+            <div className="flex flex-col items-center text-center">
+              <Loader2 className="mb-4 h-10 w-10 animate-spin text-destructive" />
+              <h2 id="delete-all-title" className="text-lg font-semibold">
+                Menghapus layanan...
+              </h2>
+              <p id="delete-all-desc" className="mt-2 text-sm text-muted-foreground">
+                {hasActiveFilters()
+                  ? `Sedang menghapus ${data.total} layanan sesuai filter. Mohon tunggu dan jangan tutup halaman.`
+                  : `Sedang menghapus ${data.total} layanan. Mohon tunggu dan jangan tutup halaman.`}
+              </p>
+            </div>
+            <div className="mt-6 space-y-2">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Progress</span>
+                <span>{Math.round(deleteAllProgress)}%</span>
+              </div>
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-destructive transition-all duration-300 ease-out"
+                  style={{ width: `${Math.min(deleteAllProgress, 100)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-1 flex-wrap gap-2">
           <div className="relative flex-1 min-w-[200px]">
@@ -178,10 +275,10 @@ export function ServicesTable({
               type="button"
               variant="destructive"
               onClick={handleDeleteAll}
-              disabled={pending || data.total === 0}
+              disabled={pending || deletingAll || data.total === 0}
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              Hapus Semua
+              {deletingAll ? "Memproses..." : "Hapus Semua"}
             </Button>
             <ServiceForm
               ukes={ukes}

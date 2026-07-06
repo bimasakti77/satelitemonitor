@@ -106,6 +106,10 @@ export function ImportPageClient({ imports, isAdmin, rollbackableImportId }: Imp
       } else {
         toast.error(result.error);
       }
+    } catch {
+      toast.error(
+        "Commit gagal atau terputus (timeout server). Cek Riwayat Import di Neon/Vercel Logs, lalu coba lagi atau pecah file."
+      );
     } finally {
       window.setTimeout(() => {
         setCommitting(false);

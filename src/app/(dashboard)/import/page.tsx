@@ -3,6 +3,8 @@ import { ImportPageClient } from "@/components/import/import-page-client";
 import { getImports, getLatestCommittedImportId } from "@/lib/actions/import";
 import { requireAuth } from "@/lib/auth";
 
+export const maxDuration = 60;
+
 export default async function ImportPage() {
   const session = await requireAuth();
   const [imports, rollbackableImportId] = await Promise.all([
