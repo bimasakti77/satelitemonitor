@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -13,6 +13,8 @@ import {
   Loader2,
   Printer,
   Search,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   ChartCard,
@@ -57,8 +59,10 @@ function ServicesTableSection({
   services: DashboardServiceItem[];
   filterLabel: string;
 }) {
+  const PAGE_SIZE = 20;
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const [page, setPage] = useState(1);
 
   const ukeTabs = useMemo(() => {
     const map = new Map<string, string>();
@@ -101,6 +105,35 @@ function ServicesTableSection({
     return counts;
   }, [services]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredServices.length / PAGE_SIZE));
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, activeTab, services.length]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const paginatedServices = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredServices.slice(start, start + PAGE_SIZE);
+  }, [filteredServices, page]);
+
+  const rangeStart =
+    filteredServices.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(page * PAGE_SIZE, filteredServices.length);
+
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 9) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const pages = new Set<number>([1, totalPages, page, page - 1, page + 1]);
+    return Array.from(pages)
+      .filter((p) => p >= 1 && p <= totalPages)
+      .sort((a, b) => a - b);
+  }, [page, totalPages]);
+
   if (services.length === 0) {
     return (
       <p className="py-12 text-center text-sm text-muted-foreground">
@@ -122,7 +155,13 @@ function ServicesTableSection({
         />
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          setActiveTab(value);
+          setPage(1);
+        }}
+      >
         <TabsList className="w-full justify-start">
           <TabsTrigger value="all">Semua ({services.length})</TabsTrigger>
           {ukeTabs.map(([code, name]) => (
@@ -134,7 +173,9 @@ function ServicesTableSection({
       </Tabs>
 
       <p className="text-xs text-muted-foreground">
-        Menampilkan {filteredServices.length} dari {services.length} layanan — {filterLabel}
+        {filteredServices.length > 0
+          ? `Menampilkan ${rangeStart}–${rangeEnd} dari ${filteredServices.length} layanan (${PAGE_SIZE} per halaman) — ${filterLabel}`
+          : `0 layanan — ${filterLabel}`}
         {activeTab !== "all" ? ` · UKE ${activeTab}` : ""}
         {search.trim() ? ` · pencarian "${search.trim()}"` : ""}
       </p>
@@ -158,9 +199,11 @@ function ServicesTableSection({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredServices.map((s, i) => (
+              {paginatedServices.map((s, i) => (
                 <TableRow key={s.id}>
-                  <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {rangeStart + i}
+                  </TableCell>
                   <TableCell>{s.ukeCode ?? "-"}</TableCell>
                   <TableCell className="max-w-[140px] truncate">{s.kelompokLayanan}</TableCell>
                   <TableCell className="font-medium max-w-[260px]">
@@ -184,6 +227,58 @@ function ServicesTableSection({
               ))}
             </TableBody>
           </Table>
+        </div>
+      )}
+
+      {filteredServices.length > 0 && totalPages > 1 && (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            Halaman {page} dari {totalPages}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Sebelumnya
+            </Button>
+            <div className="flex flex-wrap gap-1">
+              {pageNumbers.map((pageNum, idx) => {
+                const prev = pageNumbers[idx - 1];
+                const showEllipsis = prev !== undefined && pageNum - prev > 1;
+                return (
+                  <span key={pageNum} className="flex items-center gap-1">
+                    {showEllipsis && (
+                      <span className="px-1 text-muted-foreground">…</span>
+                    )}
+                    <Button
+                      type="button"
+                      variant={pageNum === page ? "default" : "outline"}
+                      size="sm"
+                      className="min-w-9 px-2"
+                      onClick={() => setPage(pageNum)}
+                    >
+                      {pageNum}
+                    </Button>
+                  </span>
+                );
+              })}
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Berikutnya
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       )}
     </div>
