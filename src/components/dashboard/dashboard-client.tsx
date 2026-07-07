@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -10,6 +10,7 @@ import {
   FileSpreadsheet,
   Layers,
   ListTree,
+  Loader2,
   Printer,
   Search,
 } from "lucide-react";
@@ -192,12 +193,15 @@ function ServicesTableSection({
 export function DashboardClient({ data, selectedTahun }: DashboardClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isFilterPending, startFilterTransition] = useTransition();
 
   const updateTahun = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
     if (value === "all") params.delete("tahun");
     else params.set("tahun", value);
-    router.push(`/dashboard?${params.toString()}`);
+    startFilterTransition(() => {
+      router.push(`/dashboard?${params.toString()}`);
+    });
   };
 
   const tahunLabel =
@@ -239,9 +243,17 @@ export function DashboardClient({ data, selectedTahun }: DashboardClientProps) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Select value={selectedTahun} onValueChange={updateTahun}>
+          <Select
+            value={selectedTahun}
+            onValueChange={updateTahun}
+            disabled={isFilterPending}
+          >
             <SelectTrigger className="w-[180px]">
-              <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
+              {isFilterPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin text-primary" />
+              ) : (
+                <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
+              )}
               <SelectValue placeholder="Tahun Pekerjaan" />
             </SelectTrigger>
             <SelectContent>
@@ -253,16 +265,46 @@ export function DashboardClient({ data, selectedTahun }: DashboardClientProps) {
               ))}
             </SelectContent>
           </Select>
-          <Button type="button" variant="outline" size="sm" onClick={handleExportExcel}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleExportExcel}
+            disabled={isFilterPending}
+          >
             <FileSpreadsheet className="mr-2 h-4 w-4" />
             Export Excel
           </Button>
-          <Button type="button" variant="outline" size="sm" onClick={handleExportPdf}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleExportPdf}
+            disabled={isFilterPending}
+          >
             <Printer className="mr-2 h-4 w-4" />
             Export PDF
           </Button>
         </div>
       </div>
+
+      <div className="relative">
+        {isFilterPending && (
+          <div
+            className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-background/70 backdrop-blur-[1px]"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="h-9 w-9 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">Memuat data dashboard...</p>
+            </div>
+          </div>
+        )}
+
+        <div
+          className={`space-y-8 transition-opacity ${isFilterPending ? "pointer-events-none opacity-50" : ""}`}
+        >
 
       {/* 1. Charts */}
       <section className="space-y-4">
@@ -387,6 +429,8 @@ export function DashboardClient({ data, selectedTahun }: DashboardClientProps) {
           </CardContent>
         </Card>
       </section>
+        </div>
+      </div>
     </div>
   );
 }
