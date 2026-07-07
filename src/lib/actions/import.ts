@@ -6,7 +6,6 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { createAuditLog } from "@/lib/audit";
 import { recordServiceHistory } from "@/lib/service-history";
-import { createServiceNotification } from "@/lib/notifications";
 import type { ActionResult } from "./auth";
 import type { IntegrationReadiness, Prisma, ServiceScope } from "@prisma/client";
 import {
@@ -54,6 +53,51 @@ interface ImportUpdatedSnapshot {
 interface ImportSnapshot {
   created: string[];
   updated: ImportUpdatedSnapshot[];
+}
+
+const COMMIT_BATCH_SIZE = 40;
+const HISTORY_CHUNK_SIZE = 100;
+
+type ServiceBefore = ImportUpdatedSnapshot["before"];
+
+function toRollbackBefore(
+  before: {
+    kelompokLayanan: string;
+    jenisLayanan: string;
+    tahunPekerjaan: number;
+    scope: ServiceScope;
+    tipeLayananInternal: string | null;
+    sudahSuperApps: boolean;
+    kesiapanIntegrasi: IntegrationReadiness;
+    namaAplikasi: string | null;
+    detailAplikasi: string | null;
+    ukeId: string | null;
+    fungsi: { nama: string; sortOrder: number }[];
+  }
+): ImportUpdatedSnapshot["before"] {
+  return {
+    kelompokLayanan: before.kelompokLayanan,
+    jenisLayanan: before.jenisLayanan,
+    tahunPekerjaan: before.tahunPekerjaan,
+    scope: before.scope,
+    tipeLayananInternal: before.tipeLayananInternal,
+    sudahSuperApps: before.sudahSuperApps,
+    kesiapanIntegrasi: before.kesiapanIntegrasi,
+    namaAplikasi: before.namaAplikasi,
+    detailAplikasi: before.detailAplikasi,
+    ukeId: before.ukeId,
+    fungsi: before.fungsi.map((f) => ({ nama: f.nama, sortOrder: f.sortOrder })),
+  };
+}
+
+async function flushHistoryBatch(
+  records: Prisma.ServiceHistoryCreateManyInput[]
+) {
+  for (let i = 0; i < records.length; i += HISTORY_CHUNK_SIZE) {
+    await prisma.serviceHistory.createMany({
+      data: records.slice(i, i + HISTORY_CHUNK_SIZE),
+    });
+  }
 }
 
 const COLUMN_MAP = IMPORT_COLUMN_MAP as Record<string, keyof ImportRow>;
@@ -278,7 +322,10 @@ export async function commitImport(importId: string): Promise<ActionResult> {
   const rows = importRecord.validationReport as unknown as ImportRow[];
   const [ukes, existingServices] = await Promise.all([
     prisma.uke.findMany(),
-    prisma.service.findMany({ where: { isDeleted: false } }),
+    prisma.service.findMany({
+      where: { isDeleted: false },
+      include: { fungsi: { orderBy: { sortOrder: "asc" } } },
+    }),
   ]);
   const ukeByCode = new Map(ukes.map((u) => [u.code.toLowerCase(), u]));
   const ukeByName = new Map(ukes.map((u) => [u.name.toLowerCase(), u]));
@@ -288,12 +335,19 @@ export async function commitImport(importId: string): Promise<ActionResult> {
       s,
     ])
   );
+  const serviceById = new Map(existingServices.map((s) => [s.id, s]));
 
   const snapshot: ImportSnapshot = { created: [], updated: [] };
+  const historyRecords: Prisma.ServiceHistoryCreateManyInput[] = [];
   const seenKeys = new Set<string>();
-  let inserted = 0;
-  let updated = 0;
   let errors = 0;
+
+  const createPayloads: Prisma.ServiceCreateManyInput[] = [];
+  const updateJobs: {
+    targetId: string;
+    data: ReturnType<typeof rowToServiceData>;
+    before: ServiceBefore;
+  }[] = [];
 
   for (const row of rows) {
     if (row.status === "error" || row.status === "duplicate") {
@@ -314,77 +368,71 @@ export async function commitImport(importId: string): Promise<ActionResult> {
     seenKeys.add(dupKey);
 
     const existing = serviceByKey.get(dupKey);
-    const isUpdate = Boolean(existing?.id ?? row.existingId);
     const targetId = existing?.id ?? row.existingId;
-
     const uke = resolveUke(row, ukeByCode, ukeByName);
     const data = rowToServiceData(row, uke?.id ?? null);
 
-    if (isUpdate && targetId) {
-      const before = await prisma.service.findUnique({
-        where: { id: targetId },
-        include: { fungsi: { orderBy: { sortOrder: "asc" } } },
-      });
+    if (targetId) {
+      const before = serviceById.get(targetId);
       if (!before || before.isDeleted) {
         errors++;
         continue;
       }
-
-      await prisma.service.update({ where: { id: targetId }, data });
-      await recordServiceHistory({
-        serviceId: targetId,
-        action: "UPDATED",
-        userId: session.id,
-        snapshot: { before, after: data },
+      updateJobs.push({
+        targetId,
+        data,
+        before: toRollbackBefore(before),
       });
-      await createServiceNotification({
-        serviceId: targetId,
-        type: "UPDATED_SERVICE",
-        title: "Import: Layanan Diperbarui",
-        message: row.jenisLayanan,
-      });
-      snapshot.updated.push({
-        id: targetId,
-        before: {
-          kelompokLayanan: before.kelompokLayanan,
-          jenisLayanan: before.jenisLayanan,
-          tahunPekerjaan: before.tahunPekerjaan,
-          scope: before.scope,
-          tipeLayananInternal: before.tipeLayananInternal,
-          sudahSuperApps: before.sudahSuperApps,
-          kesiapanIntegrasi: before.kesiapanIntegrasi,
-          namaAplikasi: before.namaAplikasi,
-          detailAplikasi: before.detailAplikasi,
-          ukeId: before.ukeId,
-          fungsi: before.fungsi.map((f) => ({ nama: f.nama, sortOrder: f.sortOrder })),
-        },
-      });
-      updated++;
     } else {
-      const service = await prisma.service.create({ data });
-      await recordServiceHistory({
+      createPayloads.push(data);
+    }
+  }
+
+  let inserted = 0;
+  let updated = 0;
+
+  for (let i = 0; i < createPayloads.length; i += COMMIT_BATCH_SIZE) {
+    const chunk = createPayloads.slice(i, i + COMMIT_BATCH_SIZE);
+    const created = await prisma.service.createManyAndReturn({ data: chunk });
+    inserted += created.length;
+
+    for (let j = 0; j < created.length; j++) {
+      const service = created[j];
+      const payload = chunk[j];
+      snapshot.created.push(service.id);
+      historyRecords.push({
         serviceId: service.id,
         action: "CREATED",
         userId: session.id,
-        snapshot: data,
+        snapshot: payload as unknown as Prisma.InputJsonValue,
       });
-      await createServiceNotification({
-        serviceId: service.id,
-        type: "NEW_SERVICE",
-        title: "Import: Layanan Baru",
-        message: row.jenisLayanan,
+    }
+  }
+
+  for (let i = 0; i < updateJobs.length; i += COMMIT_BATCH_SIZE) {
+    const chunk = updateJobs.slice(i, i + COMMIT_BATCH_SIZE);
+    const results = await Promise.all(
+      chunk.map(async (job) => {
+        await prisma.service.update({ where: { id: job.targetId }, data: job.data });
+        return job;
+      })
+    );
+
+    updated += results.length;
+    for (const job of results) {
+      snapshot.updated.push({
+        id: job.targetId,
+        before: job.before,
       });
-      snapshot.created.push(service.id);
-      serviceByKey.set(
-        serviceDuplicateKey(
-          service.kelompokLayanan,
-          service.jenisLayanan,
-          service.tahunPekerjaan,
-          service.scope
-        ),
-        service
-      );
-      inserted++;
+      historyRecords.push({
+        serviceId: job.targetId,
+        action: "UPDATED",
+        userId: session.id,
+        snapshot: {
+          before: job.before,
+          after: job.data,
+        } as unknown as Prisma.InputJsonValue,
+      });
     }
   }
 
@@ -395,6 +443,8 @@ export async function commitImport(importId: string): Promise<ActionResult> {
     };
   }
 
+  await flushHistoryBatch(historyRecords);
+
   await prisma.import.update({
     where: { id: importId },
     data: {
@@ -404,6 +454,14 @@ export async function commitImport(importId: string): Promise<ActionResult> {
       errorCount: errors,
       snapshot: snapshot as unknown as Prisma.InputJsonValue,
       committedAt: new Date(),
+    },
+  });
+
+  await prisma.notification.create({
+    data: {
+      type: "IMPORT_COMMIT",
+      title: "Import spreadsheet selesai",
+      message: `${inserted} layanan baru, ${updated} layanan diperbarui`,
     },
   });
 

@@ -351,17 +351,21 @@ export async function deleteAllServices(
     data: { isDeleted: true, deletedAt: now },
   });
 
-  await Promise.all(
-    services.map((service) =>
-      recordServiceHistory({
-        serviceId: service.id,
-        action: "DELETED",
-        userId: session.id,
-        fieldName: "bulk_delete",
-        newValue: "Hapus semua layanan",
-      })
-    )
+  const historyRecords: Prisma.ServiceHistoryCreateManyInput[] = services.map(
+    (service) => ({
+      serviceId: service.id,
+      action: "DELETED" as const,
+      userId: session.id,
+      fieldName: "bulk_delete",
+      newValue: "Hapus semua layanan",
+    })
   );
+
+  for (let i = 0; i < historyRecords.length; i += 100) {
+    await prisma.serviceHistory.createMany({
+      data: historyRecords.slice(i, i + 100),
+    });
+  }
 
   await createAuditLog({
     userId: session.id,
