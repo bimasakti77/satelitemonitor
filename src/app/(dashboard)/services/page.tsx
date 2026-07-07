@@ -29,7 +29,12 @@ async function ServicesContent({ searchParams }: PageProps) {
         : params.sudahSuperApps === "false"
           ? false
           : undefined,
-    kesiapanIntegrasi: params.kesiapanIntegrasi,
+    kesiapanIntegrasi:
+      params.kesiapanIntegrasi === "blank"
+        ? "NOT_READY"
+        : params.kesiapanIntegrasi && params.kesiapanIntegrasi !== "all"
+          ? params.kesiapanIntegrasi
+          : undefined,
     page: params.page ? Number(params.page) : 1,
     pageSize: 10,
     sortBy: params.sortBy ?? "updatedAt",

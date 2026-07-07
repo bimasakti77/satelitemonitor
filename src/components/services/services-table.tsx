@@ -24,9 +24,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ServiceForm } from "@/components/services/service-form";
-import { deleteService, deleteAllServices } from "@/lib/actions/services";
+import {
+  deleteService,
+  deleteAllServices,
+  updateServiceTahunPekerjaan,
+} from "@/lib/actions/services";
 import { INTEGRATION_LABELS, SCOPE_LABELS } from "@/lib/constants";
 import type { ServiceScope, IntegrationReadiness } from "@prisma/client";
+
+const TAHUN_OPTIONS = [2026, 2027, 2028] as const;
+
+function getTahunSelectOptions(current: number) {
+  const years = new Set<number>([...TAHUN_OPTIONS, current]);
+  return Array.from(years).sort((a, b) => a - b);
+}
 
 interface ServiceItem {
   id: string;
@@ -54,6 +65,12 @@ interface ServicesTableProps {
   defaultUkeId?: string;
 }
 
+function parseKesiapanFilter(value: string | null): string | undefined {
+  if (!value || value === "all") return undefined;
+  if (value === "blank") return "NOT_READY";
+  return value;
+}
+
 export function ServicesTable({
   data,
   ukes,
@@ -66,6 +83,11 @@ export function ServicesTable({
   const [pending, startTransition] = useTransition();
   const [deletingAll, setDeletingAll] = useState(false);
   const [deleteAllProgress, setDeleteAllProgress] = useState(0);
+  const [updatingTahunId, setUpdatingTahunId] = useState<string | null>(null);
+  const [tahunOverrides, setTahunOverrides] = useState<Record<string, number>>({});
+
+  const superAppsFilter = searchParams.get("sudahSuperApps") ?? "all";
+  const kesiapanFilter = searchParams.get("kesiapanIntegrasi") ?? "all";
 
   useEffect(() => {
     if (!deletingAll) {
@@ -98,7 +120,7 @@ export function ServicesTable({
           : params.sudahSuperApps === "false"
             ? false
             : undefined,
-      kesiapanIntegrasi: params.kesiapanIntegrasi,
+      kesiapanIntegrasi: parseKesiapanFilter(params.kesiapanIntegrasi ?? null),
     };
   };
 
@@ -117,7 +139,7 @@ export function ServicesTable({
 
   const updateParams = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
-    if (value) params.set(key, value);
+    if (value && value !== "all") params.set(key, value);
     else params.delete(key);
     if (key !== "page") params.set("page", "1");
     router.push(`/services?${params.toString()}`);
@@ -127,6 +149,37 @@ export function ServicesTable({
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", String(page));
     router.push(`/services?${params.toString()}`);
+  };
+
+  const handleTahunChange = async (serviceId: string, tahun: number, previous: number) => {
+    if (tahun === previous) return;
+
+    setUpdatingTahunId(serviceId);
+    setTahunOverrides((prev) => ({ ...prev, [serviceId]: tahun }));
+
+    try {
+      const result = await updateServiceTahunPekerjaan(serviceId, tahun);
+      if (result.success) {
+        toast.success(`Tahun pekerjaan diperbarui ke ${tahun}`);
+        router.refresh();
+      } else {
+        setTahunOverrides((prev) => {
+          const next = { ...prev };
+          delete next[serviceId];
+          return next;
+        });
+        toast.error(result.error ?? "Gagal memperbarui tahun");
+      }
+    } catch {
+      setTahunOverrides((prev) => {
+        const next = { ...prev };
+        delete next[serviceId];
+        return next;
+      });
+      toast.error("Gagal memperbarui tahun pekerjaan");
+    } finally {
+      setUpdatingTahunId(null);
+    }
   };
 
   const handleDeleteAll = async () => {
@@ -225,52 +278,94 @@ export function ServicesTable({
         </div>
       )}
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-1 flex-wrap gap-2">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Cari layanan..."
-              className="pl-9"
-              defaultValue={searchParams.get("search") ?? ""}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  updateParams("search", (e.target as HTMLInputElement).value);
-                }
-              }}
-            />
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-1 flex-col gap-3">
+          <div className="flex flex-1 flex-wrap gap-2">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Cari layanan..."
+                className="pl-9"
+                defaultValue={searchParams.get("search") ?? ""}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    updateParams("search", (e.target as HTMLInputElement).value);
+                  }
+                }}
+              />
+            </div>
+            <Select
+              value={searchParams.get("ukeId") ?? "all"}
+              onValueChange={(v) => updateParams("ukeId", v === "all" ? "" : v)}
+            >
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="UKE" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua UKE</SelectItem>
+                {ukes.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={kesiapanFilter}
+              onValueChange={(v) => updateParams("kesiapanIntegrasi", v)}
+            >
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Kesiapan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Kesiapan</SelectItem>
+                <SelectItem value="Q1">Q1</SelectItem>
+                <SelectItem value="Q2">Q2</SelectItem>
+                <SelectItem value="Q3">Q3</SelectItem>
+                <SelectItem value="blank">Belum di set</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <Select
-            value={searchParams.get("ukeId") ?? "all"}
-            onValueChange={(v) => updateParams("ukeId", v === "all" ? "" : v)}
-          >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="UKE" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua UKE</SelectItem>
-              {ukes.map((u) => (
-                <SelectItem key={u.id} value={u.id}>{u.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={searchParams.get("kelompokLayanan") ?? "all"}
-            onValueChange={(v) => updateParams("kelompokLayanan", v === "all" ? "" : v)}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Kelompok" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Kelompok</SelectItem>
-              {kelompokOptions.map((k) => (
-                <SelectItem key={k} value={k}>{k}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+
+          <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-muted/30 px-4 py-3">
+            <span className="text-sm font-medium text-foreground">SuperApps:</span>
+            <div className="flex flex-wrap items-center gap-4">
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="superapps-filter"
+                  checked={superAppsFilter === "all"}
+                  onChange={() => updateParams("sudahSuperApps", "all")}
+                  className="h-4 w-4 accent-primary"
+                />
+                Semua
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="superapps-filter"
+                  checked={superAppsFilter === "true"}
+                  onChange={() => updateParams("sudahSuperApps", "true")}
+                  className="h-4 w-4 accent-primary"
+                />
+                Sudah
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="superapps-filter"
+                  checked={superAppsFilter === "false"}
+                  onChange={() => updateParams("sudahSuperApps", "false")}
+                  className="h-4 w-4 accent-primary"
+                />
+                Belum
+              </label>
+            </div>
+          </div>
         </div>
+
         {canWrite && (
-          <div className="flex gap-2">
+          <div className="flex gap-2 shrink-0">
             <Button
               type="button"
               variant="destructive"
@@ -295,11 +390,9 @@ export function ServicesTable({
             <TableRow>
               <TableHead className="w-[50px]">No</TableHead>
               <TableHead>UKE I</TableHead>
-              <TableHead>Tahun</TableHead>
-              <TableHead>Kelompok</TableHead>
+              <TableHead className="w-[100px]">Tahun</TableHead>
               <TableHead>Jenis Layanan</TableHead>
               <TableHead>Tipe</TableHead>
-              <TableHead>Tipe Internal</TableHead>
               <TableHead>Integrasi</TableHead>
               <TableHead>SuperApps</TableHead>
               <TableHead className="w-[80px]">Aksi</TableHead>
@@ -308,59 +401,95 @@ export function ServicesTable({
           <TableBody>
             {data.items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   Tidak ada layanan
                 </TableCell>
               </TableRow>
             ) : (
-              data.items.map((s, index) => (
-                <TableRow key={s.id}>
-                  <TableCell className="text-muted-foreground">
-                    {(data.page - 1) * data.pageSize + index + 1}
-                  </TableCell>
-                  <TableCell>{s.uke?.code ?? "-"}</TableCell>
-                  <TableCell>{s.tahunPekerjaan}</TableCell>
-                  <TableCell className="max-w-[120px] truncate">{s.kelompokLayanan}</TableCell>
-                  <TableCell className="font-medium max-w-[180px] truncate">
-                    {s.jenisLayanan}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{SCOPE_LABELS[s.scope]}</Badge>
-                  </TableCell>
-                  <TableCell className="max-w-[100px] truncate">
-                    {s.scope === "INTERNAL" ? (s.tipeLayananInternal ?? "-") : "-"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">
-                      {INTEGRATION_LABELS[s.kesiapanIntegrasi]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={s.sudahSuperApps ? "success" : "warning"}>
-                      {s.sudahSuperApps ? "Sudah" : "Belum"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" asChild>
-                        <Link href={`/services/${s.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      {canWrite && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(s.id)}
-                          disabled={pending}
+              data.items.map((s, index) => {
+                const displayTahun = tahunOverrides[s.id] ?? s.tahunPekerjaan;
+                const isUpdatingTahun = updatingTahunId === s.id;
+
+                return (
+                  <TableRow key={s.id}>
+                    <TableCell className="text-muted-foreground">
+                      {(data.page - 1) * data.pageSize + index + 1}
+                    </TableCell>
+                    <TableCell>{s.uke?.code ?? "-"}</TableCell>
+                    <TableCell>
+                      {canWrite ? (
+                        <Select
+                          value={String(displayTahun)}
+                          disabled={isUpdatingTahun || pending}
+                          onValueChange={(v) =>
+                            handleTahunChange(s.id, Number(v), s.tahunPekerjaan)
+                          }
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                          <SelectTrigger className="h-8 w-[88px]">
+                            {isUpdatingTahun ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <SelectValue />
+                            )}
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getTahunSelectOptions(s.tahunPekerjaan).map((year) => (
+                              <SelectItem key={year} value={String(year)}>
+                                {year}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        displayTahun
                       )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+                    </TableCell>
+                    <TableCell className="font-medium max-w-[240px] truncate">
+                      <Link
+                        href={`/services/${s.id}`}
+                        className="hover:text-primary hover:underline"
+                        title={s.jenisLayanan}
+                      >
+                        {s.jenisLayanan}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{SCOPE_LABELS[s.scope]}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">
+                        {s.kesiapanIntegrasi === "NOT_READY"
+                          ? "Belum di set"
+                          : INTEGRATION_LABELS[s.kesiapanIntegrasi]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={s.sudahSuperApps ? "success" : "warning"}>
+                        {s.sudahSuperApps ? "Sudah" : "Belum"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" asChild>
+                          <Link href={`/services/${s.id}`}>
+                            <Eye className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        {canWrite && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(s.id)}
+                            disabled={pending}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

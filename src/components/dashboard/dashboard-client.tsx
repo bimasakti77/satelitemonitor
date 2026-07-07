@@ -46,10 +46,13 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { exportDashboardExcel, exportDashboardPdf } from "@/lib/dashboard-export";
 import { INTEGRATION_LABELS, SCOPE_LABELS } from "@/lib/constants";
 import type { DashboardServiceItem, ExecutiveDashboardData } from "@/lib/actions/dashboard";
+import type { ServerHealthResult } from "@/lib/server-health";
+import { ServerHealthPanel } from "@/components/dashboard/server-health-panel";
 
 interface DashboardClientProps {
   data: ExecutiveDashboardData;
   selectedTahun: string;
+  serverHealth: ServerHealthResult[];
 }
 
 function ServicesTableSection({
@@ -285,7 +288,7 @@ function ServicesTableSection({
   );
 }
 
-export function DashboardClient({ data, selectedTahun }: DashboardClientProps) {
+export function DashboardClient({ data, selectedTahun, serverHealth }: DashboardClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isFilterPending, startFilterTransition] = useTransition();
@@ -330,6 +333,8 @@ export function DashboardClient({ data, selectedTahun }: DashboardClientProps) {
 
   return (
     <div className="space-y-8">
+      <ServerHealthPanel initialHealth={serverHealth} />
+
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-1">
           <p className="text-sm font-medium text-foreground">{filterLabel}</p>

@@ -280,6 +280,63 @@ export async function updateService(
   return { success: true };
 }
 
+const INLINE_TAHUN_OPTIONS = [2026, 2027, 2028] as const;
+
+export async function updateServiceTahunPekerjaan(
+  id: string,
+  tahunPekerjaan: number
+): Promise<ActionResult> {
+  const session = await requireRole(["ADMINISTRATOR", "OPERATOR_UKE"]);
+
+  if (!INLINE_TAHUN_OPTIONS.includes(tahunPekerjaan as (typeof INLINE_TAHUN_OPTIONS)[number])) {
+    return { success: false, error: "Tahun pekerjaan tidak valid" };
+  }
+
+  const existing = await prisma.service.findUnique({ where: { id } });
+  if (!existing || existing.isDeleted) {
+    return { success: false, error: "Layanan tidak ditemukan" };
+  }
+
+  if (
+    session.role === "OPERATOR_UKE" &&
+    session.ukeId &&
+    existing.ukeId !== session.ukeId
+  ) {
+    return { success: false, error: "Tidak dapat mengubah layanan UKE lain" };
+  }
+
+  if (existing.tahunPekerjaan === tahunPekerjaan) {
+    return { success: true };
+  }
+
+  const previous = existing.tahunPekerjaan;
+  const updated = await prisma.service.update({
+    where: { id },
+    data: { tahunPekerjaan },
+  });
+
+  await recordServiceFieldChanges(
+    id,
+    session.id,
+    { tahunPekerjaan: previous },
+    { tahunPekerjaan: updated.tahunPekerjaan },
+    SERVICE_FIELD_LABELS
+  );
+
+  await createAuditLog({
+    userId: session.id,
+    action: "UPDATE",
+    entity: "Service",
+    entityId: id,
+    metadata: { tahunPekerjaan: updated.tahunPekerjaan },
+  });
+
+  revalidatePath("/services");
+  revalidatePath(`/services/${id}`);
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
 export async function deleteService(id: string): Promise<ActionResult> {
   const session = await requireRole(["ADMINISTRATOR", "OPERATOR_UKE"]);
 

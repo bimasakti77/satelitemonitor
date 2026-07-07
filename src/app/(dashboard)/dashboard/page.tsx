@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getExecutiveDashboard } from "@/lib/actions/dashboard";
+import { getServerHealthStatuses } from "@/lib/actions/server-health";
 import { requireAuth } from "@/lib/auth";
 
 interface PageProps {
@@ -20,10 +21,17 @@ async function DashboardContent({ searchParams }: PageProps) {
   const ukeId =
     session.role === "OPERATOR_UKE" && session.ukeId ? session.ukeId : undefined;
 
-  const data = await getExecutiveDashboard({ tahunPekerjaan, ukeId });
+  const [data, serverHealth] = await Promise.all([
+    getExecutiveDashboard({ tahunPekerjaan, ukeId }),
+    getServerHealthStatuses(),
+  ]);
 
   return (
-    <DashboardClient data={data} selectedTahun={selectedTahun} />
+    <DashboardClient
+      data={data}
+      selectedTahun={selectedTahun}
+      serverHealth={serverHealth}
+    />
   );
 }
 
