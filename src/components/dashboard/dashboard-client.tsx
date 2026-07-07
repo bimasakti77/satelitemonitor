@@ -52,6 +52,7 @@ import { ServerHealthPanel } from "@/components/dashboard/server-health-panel";
 interface DashboardClientProps {
   data: ExecutiveDashboardData;
   selectedTahun: string;
+  selectedScope: string;
   serverHealth: ServerHealthResult[];
 }
 
@@ -288,24 +289,45 @@ function ServicesTableSection({
   );
 }
 
-export function DashboardClient({ data, selectedTahun, serverHealth }: DashboardClientProps) {
+export function DashboardClient({
+  data,
+  selectedTahun,
+  selectedScope,
+  serverHealth,
+}: DashboardClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isFilterPending, startFilterTransition] = useTransition();
 
-  const updateTahun = (value: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value === "all") params.delete("tahun");
-    else params.set("tahun", value);
+  const pushWithParams = (params: URLSearchParams) => {
     startFilterTransition(() => {
       router.push(`/dashboard?${params.toString()}`);
     });
   };
 
+  const updateTahun = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === "all") params.delete("tahun");
+    else params.set("tahun", value);
+    pushWithParams(params);
+  };
+
+  const updateScope = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === "all") params.delete("scope");
+    else params.set("scope", value);
+    pushWithParams(params);
+  };
+
   const tahunLabel =
     selectedTahun === "all" ? "Semua Tahun" : `Tahun ${selectedTahun}`;
 
-  const filterLabel = `Belum SuperApps · ${tahunLabel}`;
+  const scopeLabel =
+    selectedScope === "INTERNAL" || selectedScope === "EKSTERNAL"
+      ? SCOPE_LABELS[selectedScope]
+      : null;
+
+  const filterLabel = ["Belum SuperApps", tahunLabel, scopeLabel].filter(Boolean).join(" · ");
 
   const handleExportExcel = () => {
     try {
@@ -365,6 +387,44 @@ export function DashboardClient({ data, selectedTahun, serverHealth }: Dashboard
               ))}
             </SelectContent>
           </Select>
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-2">
+            <span className="text-sm font-medium text-foreground">Tipe:</span>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="dashboard-scope-filter"
+                  checked={selectedScope === "all"}
+                  onChange={() => updateScope("all")}
+                  disabled={isFilterPending}
+                  className="h-4 w-4 accent-primary"
+                />
+                Semua
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="dashboard-scope-filter"
+                  checked={selectedScope === "INTERNAL"}
+                  onChange={() => updateScope("INTERNAL")}
+                  disabled={isFilterPending}
+                  className="h-4 w-4 accent-primary"
+                />
+                Internal
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="dashboard-scope-filter"
+                  checked={selectedScope === "EKSTERNAL"}
+                  onChange={() => updateScope("EKSTERNAL")}
+                  disabled={isFilterPending}
+                  className="h-4 w-4 accent-primary"
+                />
+                Eksternal
+              </label>
+            </div>
+          </div>
           <Button
             type="button"
             variant="outline"

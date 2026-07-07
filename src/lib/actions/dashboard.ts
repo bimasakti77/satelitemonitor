@@ -8,6 +8,7 @@ import type { IntegrationReadiness, Prisma, ServiceScope } from "@prisma/client"
 export interface DashboardFilters {
   tahunPekerjaan?: number;
   ukeId?: string;
+  scope?: ServiceScope;
 }
 
 export interface DashboardServiceItem {
@@ -68,11 +69,18 @@ function jenisLayananDistinctKey(kelompokLayanan: string, jenisLayanan: string):
   return `${kelompokLayanan.toLowerCase().trim()}|${jenisLayanan.toLowerCase().trim()}`;
 }
 
-function buildServiceWhere(filters: DashboardFilters): Prisma.ServiceWhereInput {
+function buildBaseWhere(filters: DashboardFilters): Prisma.ServiceWhereInput {
   return {
     isDeleted: false,
     sudahSuperApps: false,
     ...(filters.ukeId ? { ukeId: filters.ukeId } : {}),
+    ...(filters.scope ? { scope: filters.scope } : {}),
+  };
+}
+
+function buildServiceWhere(filters: DashboardFilters): Prisma.ServiceWhereInput {
+  return {
+    ...buildBaseWhere(filters),
     ...(filters.tahunPekerjaan ? { tahunPekerjaan: filters.tahunPekerjaan } : {}),
   };
 }
@@ -108,11 +116,7 @@ export async function getExecutiveDashboard(
   await requireAuth();
 
   const where = buildServiceWhere(filters);
-  const yearWhere: Prisma.ServiceWhereInput = {
-    isDeleted: false,
-    sudahSuperApps: false,
-    ...(filters.ukeId ? { ukeId: filters.ukeId } : {}),
-  };
+  const yearWhere = buildBaseWhere(filters);
 
   const [services, yearRows] = await Promise.all([
     prisma.service.findMany({

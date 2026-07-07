@@ -15,14 +15,19 @@ async function DashboardContent({ searchParams }: PageProps) {
   const params = await searchParams;
 
   const selectedTahun = params.tahun ?? "all";
+  const selectedScope = params.scope ?? "all";
   const tahunPekerjaan =
     selectedTahun !== "all" && params.tahun ? Number(params.tahun) : undefined;
+  const scope =
+    selectedScope === "INTERNAL" || selectedScope === "EKSTERNAL"
+      ? selectedScope
+      : undefined;
 
   const ukeId =
     session.role === "OPERATOR_UKE" && session.ukeId ? session.ukeId : undefined;
 
   const [data, serverHealth] = await Promise.all([
-    getExecutiveDashboard({ tahunPekerjaan, ukeId }),
+    getExecutiveDashboard({ tahunPekerjaan, ukeId, scope }),
     getServerHealthStatuses(),
   ]);
 
@@ -30,6 +35,7 @@ async function DashboardContent({ searchParams }: PageProps) {
     <DashboardClient
       data={data}
       selectedTahun={selectedTahun}
+      selectedScope={selectedScope}
       serverHealth={serverHealth}
     />
   );

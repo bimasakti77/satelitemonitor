@@ -22,7 +22,10 @@ async function ServicesContent({ searchParams }: PageProps) {
     ukeId: params.ukeId,
     kelompokLayanan: params.kelompokLayanan,
     tahunPekerjaan: params.tahunPekerjaan ? Number(params.tahunPekerjaan) : undefined,
-    scope: params.scope,
+    scope:
+      params.scope === "INTERNAL" || params.scope === "EKSTERNAL"
+        ? params.scope
+        : undefined,
     sudahSuperApps:
       params.sudahSuperApps === "true"
         ? true

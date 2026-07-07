@@ -87,6 +87,7 @@ export function ServicesTable({
   const [tahunOverrides, setTahunOverrides] = useState<Record<string, number>>({});
 
   const superAppsFilter = searchParams.get("sudahSuperApps") ?? "all";
+  const scopeFilter = searchParams.get("scope") ?? "all";
   const kesiapanFilter = searchParams.get("kesiapanIntegrasi") ?? "all";
 
   useEffect(() => {
@@ -327,39 +328,76 @@ export function ServicesTable({
             </Select>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-muted/30 px-4 py-3">
-            <span className="text-sm font-medium text-foreground">SuperApps:</span>
-            <div className="flex flex-wrap items-center gap-4">
-              <label className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="superapps-filter"
-                  checked={superAppsFilter === "all"}
-                  onChange={() => updateParams("sudahSuperApps", "all")}
-                  className="h-4 w-4 accent-primary"
-                />
-                Semua
-              </label>
-              <label className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="superapps-filter"
-                  checked={superAppsFilter === "true"}
-                  onChange={() => updateParams("sudahSuperApps", "true")}
-                  className="h-4 w-4 accent-primary"
-                />
-                Sudah
-              </label>
-              <label className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="superapps-filter"
-                  checked={superAppsFilter === "false"}
-                  onChange={() => updateParams("sudahSuperApps", "false")}
-                  className="h-4 w-4 accent-primary"
-                />
-                Belum
-              </label>
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <span className="text-sm font-medium text-foreground">Tipe:</span>
+              <div className="flex flex-wrap items-center gap-4">
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="scope-filter"
+                    checked={scopeFilter === "all"}
+                    onChange={() => updateParams("scope", "all")}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  Semua
+                </label>
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="scope-filter"
+                    checked={scopeFilter === "INTERNAL"}
+                    onChange={() => updateParams("scope", "INTERNAL")}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  Internal
+                </label>
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="scope-filter"
+                    checked={scopeFilter === "EKSTERNAL"}
+                    onChange={() => updateParams("scope", "EKSTERNAL")}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  Eksternal
+                </label>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <span className="text-sm font-medium text-foreground">SuperApps:</span>
+              <div className="flex flex-wrap items-center gap-4">
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="superapps-filter"
+                    checked={superAppsFilter === "all"}
+                    onChange={() => updateParams("sudahSuperApps", "all")}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  Semua
+                </label>
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="superapps-filter"
+                    checked={superAppsFilter === "true"}
+                    onChange={() => updateParams("sudahSuperApps", "true")}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  Sudah
+                </label>
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="superapps-filter"
+                    checked={superAppsFilter === "false"}
+                    onChange={() => updateParams("sudahSuperApps", "false")}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  Belum
+                </label>
+              </div>
             </div>
           </div>
         </div>
