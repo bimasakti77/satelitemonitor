@@ -90,7 +90,16 @@ export function ServicesTable({
 
   const superAppsFilter = searchParams.get("sudahSuperApps") ?? "all";
   const scopeFilter = searchParams.get("scope") ?? "all";
+  const tahunFilter = searchParams.get("tahunPekerjaan") ?? "all";
   const kesiapanFilter = searchParams.get("kesiapanIntegrasi") ?? "all";
+
+  const tahunFilterOptions = (() => {
+    const years = new Set<number>([...TAHUN_OPTIONS]);
+    if (tahunFilter !== "all" && !Number.isNaN(Number(tahunFilter))) {
+      years.add(Number(tahunFilter));
+    }
+    return Array.from(years).sort((a, b) => a - b);
+  })();
 
   useEffect(() => {
     if (!deletingAll) {
@@ -315,24 +324,36 @@ export function ServicesTable({
                 </SelectContent>
               </Select>
             )}
-            <Select
-              value={kesiapanFilter}
-              onValueChange={(v) => updateParams("kesiapanIntegrasi", v)}
-            >
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Kesiapan" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Kesiapan</SelectItem>
-                <SelectItem value="Q1">Q1</SelectItem>
-                <SelectItem value="Q2">Q2</SelectItem>
-                <SelectItem value="Q3">Q3</SelectItem>
-                <SelectItem value="blank">Belum di set</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <div className="flex flex-col gap-3 xl:flex-row xl:flex-wrap">
+            <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <span className="text-sm font-medium text-foreground">Tahun:</span>
+              <div className="flex flex-wrap items-center gap-4">
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="tahun-filter"
+                    checked={tahunFilter === "all"}
+                    onChange={() => updateParams("tahunPekerjaan", "all")}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  Semua
+                </label>
+                {tahunFilterOptions.map((year) => (
+                  <label key={year} className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="tahun-filter"
+                      checked={tahunFilter === String(year)}
+                      onChange={() => updateParams("tahunPekerjaan", String(year))}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    {year}
+                  </label>
+                ))}
+              </div>
+            </div>
             <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-muted/30 px-4 py-3">
               <span className="text-sm font-medium text-foreground">Tipe:</span>
               <div className="flex flex-wrap items-center gap-4">
@@ -402,6 +423,24 @@ export function ServicesTable({
                   Belum
                 </label>
               </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <span className="text-sm font-medium text-foreground">Kesiapan:</span>
+              <Select
+                value={kesiapanFilter}
+                onValueChange={(v) => updateParams("kesiapanIntegrasi", v)}
+              >
+                <SelectTrigger className="h-9 w-[160px] bg-background">
+                  <SelectValue placeholder="Kesiapan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Kesiapan</SelectItem>
+                  <SelectItem value="Q1">Q1</SelectItem>
+                  <SelectItem value="Q2">Q2</SelectItem>
+                  <SelectItem value="Q3">Q3</SelectItem>
+                  <SelectItem value="blank">Belum di set</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
