@@ -14,6 +14,7 @@ import {
   Legend,
   LineChart,
   Line,
+  LabelList,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { CHART_COLORS, INTEGRATION_LABELS } from "@/lib/constants";
@@ -145,6 +146,42 @@ const QUARTER_COLORS: Record<string, string> = {
   Q3: "#3b82f6",
 };
 
+const CHART_COUNT_LABEL_COLOR = "#111827";
+
+const countLabelProps = {
+  fill: CHART_COUNT_LABEL_COLOR,
+  fontSize: 11,
+  fontWeight: 600,
+} as const;
+
+function createIntegrationSegmentLabel(dataKey: "Q1" | "Q2" | "Q3") {
+  return (props: {
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    payload?: { Q1?: number; Q2?: number; Q3?: number };
+  }) => {
+    const { x = 0, y = 0, width = 0, height = 0, payload } = props;
+    const count = payload?.[dataKey];
+    if (!count || width < 18) return null;
+
+    return (
+      <text
+        x={x + width / 2}
+        y={y + height / 2}
+        fill={CHART_COUNT_LABEL_COLOR}
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize={10}
+        fontWeight={700}
+      >
+        {count}
+      </text>
+    );
+  };
+}
+
 export function ExecutiveUkeChart({
   data,
 }: {
@@ -181,7 +218,9 @@ export function ExecutiveUkeChart({
             (props.payload as { name: string }).name,
           ]}
         />
-        <Bar dataKey="count" fill="#6366f1" radius={[0, 6, 6, 0]} barSize={22} />
+        <Bar dataKey="count" fill="#6366f1" radius={[0, 6, 6, 0]} barSize={22}>
+          <LabelList dataKey="count" position="right" {...countLabelProps} />
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   );
@@ -217,6 +256,7 @@ export function IntegrationQuarterChart({
           {data.map((entry) => (
             <Cell key={entry.key} fill={QUARTER_COLORS[entry.key] ?? CHART_COLORS[0]} />
           ))}
+          <LabelList dataKey="count" position="top" offset={8} {...countLabelProps} fontSize={12} />
         </Bar>
       </BarChart>
     </ResponsiveContainer>
@@ -300,8 +340,12 @@ export function IntegrationByUkeChart({
             value
           }
         />
-        <Bar dataKey="Q1Pct" name="Q1Pct" stackId="uke" fill={QUARTER_COLORS.Q1} barSize={22} />
-        <Bar dataKey="Q2Pct" name="Q2Pct" stackId="uke" fill={QUARTER_COLORS.Q2} barSize={22} />
+        <Bar dataKey="Q1Pct" name="Q1Pct" stackId="uke" fill={QUARTER_COLORS.Q1} barSize={22}>
+          <LabelList content={createIntegrationSegmentLabel("Q1")} />
+        </Bar>
+        <Bar dataKey="Q2Pct" name="Q2Pct" stackId="uke" fill={QUARTER_COLORS.Q2} barSize={22}>
+          <LabelList content={createIntegrationSegmentLabel("Q2")} />
+        </Bar>
         <Bar
           dataKey="Q3Pct"
           name="Q3Pct"
@@ -309,7 +353,9 @@ export function IntegrationByUkeChart({
           fill={QUARTER_COLORS.Q3}
           radius={[0, 6, 6, 0]}
           barSize={22}
-        />
+        >
+          <LabelList content={createIntegrationSegmentLabel("Q3")} />
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   );

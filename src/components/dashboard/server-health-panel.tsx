@@ -113,9 +113,16 @@ export function ServerHealthPanel({ initialHealth }: ServerHealthPanelProps) {
                   </a>
                 </div>
                 <Badge variant={STATUS_VARIANT[item.status]}>
-                  <span
-                    className={`mr-1.5 inline-block h-2 w-2 rounded-full ${STATUS_DOT[item.status]}`}
-                  />
+                  {item.status === "online" ? (
+                    <span className="relative mr-1.5 inline-flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                    </span>
+                  ) : (
+                    <span
+                      className={`mr-1.5 inline-block h-2 w-2 rounded-full ${STATUS_DOT[item.status]}`}
+                    />
+                  )}
                   {STATUS_LABEL[item.status]}
                 </Badge>
               </div>
