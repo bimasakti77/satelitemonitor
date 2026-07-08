@@ -15,6 +15,7 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  AppWindow,
 } from "lucide-react";
 import {
   ChartCard,
@@ -62,6 +63,45 @@ interface DashboardClientProps {
   selectedTahun: string;
   selectedScope: string;
   serverHealth: ServerHealthResult[];
+}
+
+function NamaAplikasiDialog({
+  open,
+  onOpenChange,
+  names,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  names: string[];
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[85vh] max-w-lg flex-col gap-4">
+        <DialogHeader>
+          <DialogTitle>Daftar Nama Aplikasi</DialogTitle>
+          <DialogDescription>
+            {names.length} nama aplikasi unik — diurutkan A–Z
+          </DialogDescription>
+        </DialogHeader>
+        <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-border">
+          {names.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Tidak ada nama aplikasi
+            </p>
+          ) : (
+            <ol className="divide-y divide-border">
+              {names.map((name, index) => (
+                <li key={name} className="px-4 py-2.5 text-sm">
+                  <span className="mr-2 text-muted-foreground">{index + 1}.</span>
+                  {name}
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function jenisLayananDistinctKey(kelompokLayanan: string, jenisLayanan: string): string {
@@ -442,6 +482,7 @@ export function DashboardClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isFilterPending, startFilterTransition] = useTransition();
+  const [namaAplikasiDialogOpen, setNamaAplikasiDialogOpen] = useState(false);
 
   const pushWithParams = (params: URLSearchParams) => {
     startFilterTransition(() => {
@@ -666,7 +707,7 @@ export function DashboardClient({
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           2. Ringkasan Angka
         </h2>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <KpiCard
             title="Jumlah Kelompok Layanan"
             value={data.summary.totalKelompok}
@@ -679,7 +720,20 @@ export function DashboardClient({
             description="Kombinasi kelompok + jenis unik"
             icon={ListTree}
           />
+          <KpiCard
+            title="Jumlah Nama Aplikasi"
+            value={data.summary.totalNamaAplikasi}
+            description="Nama aplikasi unik"
+            icon={AppWindow}
+            onClick={() => setNamaAplikasiDialogOpen(true)}
+          />
         </div>
+
+        <NamaAplikasiDialog
+          open={namaAplikasiDialogOpen}
+          onOpenChange={setNamaAplikasiDialogOpen}
+          names={data.namaAplikasiList}
+        />
 
         {data.jenisLayananByUke.length > 0 && (
           <div className="space-y-3">

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Search, ChevronLeft, ChevronRight, Eye, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -61,6 +61,7 @@ interface ServicesTableProps {
   };
   ukes: { id: string; label: string }[];
   kelompokOptions: string[];
+  namaAplikasiOptions: string[];
   canWrite: boolean;
   defaultUkeId?: string;
   hideUkeFilter?: boolean;
@@ -76,12 +77,14 @@ export function ServicesTable({
   data,
   ukes,
   kelompokOptions,
+  namaAplikasiOptions,
   canWrite,
   defaultUkeId,
   hideUkeFilter = false,
 }: ServicesTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isFilterPending, startFilterTransition] = useTransition();
   const [pending, startTransition] = useTransition();
   const [deletingAll, setDeletingAll] = useState(false);
   const [deleteAllProgress, setDeleteAllProgress] = useState(0);
@@ -92,6 +95,7 @@ export function ServicesTable({
   const scopeFilter = searchParams.get("scope") ?? "all";
   const tahunFilter = searchParams.get("tahunPekerjaan") ?? "all";
   const kesiapanFilter = searchParams.get("kesiapanIntegrasi") ?? "all";
+  const namaAplikasiFilter = searchParams.get("namaAplikasi") ?? "all";
 
   const tahunFilterOptions = (() => {
     const years = new Set<number>([...TAHUN_OPTIONS]);
@@ -100,6 +104,12 @@ export function ServicesTable({
     }
     return Array.from(years).sort((a, b) => a - b);
   })();
+
+  const namaAplikasiSelectOptions = useMemo(() => {
+    const names = new Set(namaAplikasiOptions);
+    if (namaAplikasiFilter !== "all") names.add(namaAplikasiFilter);
+    return Array.from(names).sort((a, b) => a.localeCompare(b, "id"));
+  }, [namaAplikasiOptions, namaAplikasiFilter]);
 
   useEffect(() => {
     if (!deletingAll) {
@@ -126,6 +136,7 @@ export function ServicesTable({
       kelompokLayanan: params.kelompokLayanan,
       tahunPekerjaan: params.tahunPekerjaan ? Number(params.tahunPekerjaan) : undefined,
       scope: params.scope,
+      namaAplikasi: params.namaAplikasi,
       sudahSuperApps:
         params.sudahSuperApps === "true"
           ? true
@@ -144,6 +155,7 @@ export function ServicesTable({
         params.get("kelompokLayanan") ||
         params.get("tahunPekerjaan") ||
         params.get("scope") ||
+        params.get("namaAplikasi") ||
         params.get("sudahSuperApps") ||
         params.get("kesiapanIntegrasi")
     );
@@ -154,7 +166,9 @@ export function ServicesTable({
     if (value && value !== "all") params.set(key, value);
     else params.delete(key);
     if (key !== "page") params.set("page", "1");
-    router.push(`/services?${params.toString()}`);
+    startFilterTransition(() => {
+      router.push(`/services?${params.toString()}`);
+    });
   };
 
   const goToPage = (page: number) => {
@@ -310,6 +324,7 @@ export function ServicesTable({
               <Select
                 value={searchParams.get("ukeId") ?? "all"}
                 onValueChange={(v) => updateParams("ukeId", v === "all" ? "" : v)}
+                disabled={isFilterPending}
               >
                 <SelectTrigger className="w-[160px]">
                   <SelectValue placeholder="UKE" />
@@ -327,108 +342,66 @@ export function ServicesTable({
           </div>
 
           <div className="flex flex-col gap-3 xl:flex-row xl:flex-wrap">
-            <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-muted/30 px-4 py-3">
-              <span className="text-sm font-medium text-foreground">Tahun:</span>
-              <div className="flex flex-wrap items-center gap-4">
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    name="tahun-filter"
-                    checked={tahunFilter === "all"}
-                    onChange={() => updateParams("tahunPekerjaan", "all")}
-                    className="h-4 w-4 accent-primary"
-                  />
-                  Semua
-                </label>
-                {tahunFilterOptions.map((year) => (
-                  <label key={year} className="flex cursor-pointer items-center gap-2 text-sm">
-                    <input
-                      type="radio"
-                      name="tahun-filter"
-                      checked={tahunFilter === String(year)}
-                      onChange={() => updateParams("tahunPekerjaan", String(year))}
-                      className="h-4 w-4 accent-primary"
-                    />
-                    {year}
-                  </label>
-                ))}
-              </div>
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <span className="text-sm font-medium text-foreground shrink-0">Tahun:</span>
+              <Select
+                value={tahunFilter}
+                onValueChange={(v) => updateParams("tahunPekerjaan", v)}
+                disabled={isFilterPending}
+              >
+                <SelectTrigger className="h-9 w-[140px] bg-background">
+                  <SelectValue placeholder="Tahun" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Tahun</SelectItem>
+                  {tahunFilterOptions.map((year) => (
+                    <SelectItem key={year} value={String(year)}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-muted/30 px-4 py-3">
-              <span className="text-sm font-medium text-foreground">Tipe:</span>
-              <div className="flex flex-wrap items-center gap-4">
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    name="scope-filter"
-                    checked={scopeFilter === "all"}
-                    onChange={() => updateParams("scope", "all")}
-                    className="h-4 w-4 accent-primary"
-                  />
-                  Semua
-                </label>
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    name="scope-filter"
-                    checked={scopeFilter === "INTERNAL"}
-                    onChange={() => updateParams("scope", "INTERNAL")}
-                    className="h-4 w-4 accent-primary"
-                  />
-                  Internal
-                </label>
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    name="scope-filter"
-                    checked={scopeFilter === "EKSTERNAL"}
-                    onChange={() => updateParams("scope", "EKSTERNAL")}
-                    className="h-4 w-4 accent-primary"
-                  />
-                  Eksternal
-                </label>
-              </div>
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <span className="text-sm font-medium text-foreground shrink-0">Tipe:</span>
+              <Select
+                value={scopeFilter}
+                onValueChange={(v) => updateParams("scope", v)}
+                disabled={isFilterPending}
+              >
+                <SelectTrigger className="h-9 w-[140px] bg-background">
+                  <SelectValue placeholder="Tipe" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Tipe</SelectItem>
+                  <SelectItem value="INTERNAL">Internal</SelectItem>
+                  <SelectItem value="EKSTERNAL">Eksternal</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-muted/30 px-4 py-3">
-              <span className="text-sm font-medium text-foreground">SuperApps:</span>
-              <div className="flex flex-wrap items-center gap-4">
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    name="superapps-filter"
-                    checked={superAppsFilter === "all"}
-                    onChange={() => updateParams("sudahSuperApps", "all")}
-                    className="h-4 w-4 accent-primary"
-                  />
-                  Semua
-                </label>
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    name="superapps-filter"
-                    checked={superAppsFilter === "true"}
-                    onChange={() => updateParams("sudahSuperApps", "true")}
-                    className="h-4 w-4 accent-primary"
-                  />
-                  Sudah
-                </label>
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    name="superapps-filter"
-                    checked={superAppsFilter === "false"}
-                    onChange={() => updateParams("sudahSuperApps", "false")}
-                    className="h-4 w-4 accent-primary"
-                  />
-                  Belum
-                </label>
-              </div>
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <span className="text-sm font-medium text-foreground shrink-0">SuperApps:</span>
+              <Select
+                value={superAppsFilter}
+                onValueChange={(v) => updateParams("sudahSuperApps", v)}
+                disabled={isFilterPending}
+              >
+                <SelectTrigger className="h-9 w-[140px] bg-background">
+                  <SelectValue placeholder="SuperApps" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua</SelectItem>
+                  <SelectItem value="true">Sudah</SelectItem>
+                  <SelectItem value="false">Belum</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-muted/30 px-4 py-3">
-              <span className="text-sm font-medium text-foreground">Kesiapan:</span>
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <span className="text-sm font-medium text-foreground shrink-0">Kesiapan:</span>
               <Select
                 value={kesiapanFilter}
                 onValueChange={(v) => updateParams("kesiapanIntegrasi", v)}
+                disabled={isFilterPending}
               >
                 <SelectTrigger className="h-9 w-[160px] bg-background">
                   <SelectValue placeholder="Kesiapan" />
@@ -439,6 +412,28 @@ export function ServicesTable({
                   <SelectItem value="Q2">Q2</SelectItem>
                   <SelectItem value="Q3">Q3</SelectItem>
                   <SelectItem value="blank">Belum di set</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <span className="text-sm font-medium text-foreground shrink-0">Nama Aplikasi:</span>
+              <Select
+                value={namaAplikasiFilter}
+                onValueChange={(v) => updateParams("namaAplikasi", v)}
+                disabled={isFilterPending}
+              >
+                <SelectTrigger className="h-9 min-w-[180px] max-w-[280px] bg-background">
+                  <SelectValue placeholder="Nama aplikasi" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Aplikasi</SelectItem>
+                  {namaAplikasiSelectOptions.map((name) => (
+                    <SelectItem key={name} value={name}>
+                      <span className="block max-w-[240px] truncate" title={name}>
+                        {name}
+                      </span>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -465,6 +460,23 @@ export function ServicesTable({
         )}
       </div>
 
+      <div className="relative">
+        {isFilterPending && (
+          <div
+            className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-background/70 backdrop-blur-[1px]"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="h-9 w-9 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">Memuat data layanan...</p>
+            </div>
+          </div>
+        )}
+
+        <div
+          className={`space-y-4 transition-opacity ${isFilterPending ? "pointer-events-none opacity-50" : ""}`}
+        >
       <div className="rounded-xl border border-border overflow-x-auto">
         <Table>
           <TableHeader>
@@ -600,6 +612,8 @@ export function ServicesTable({
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
+        </div>
+      </div>
         </div>
       </div>
     </div>

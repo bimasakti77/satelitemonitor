@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { ServicesTable } from "@/components/services/services-table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getServices } from "@/lib/actions/services";
+import { getServices, getNamaAplikasiOptions } from "@/lib/actions/services";
 import { getUkes } from "@/lib/actions/uke";
 import { getKelompokLayananOptions } from "@/lib/actions/kelompok-layanan";
 import { requireAuth, canWrite } from "@/lib/auth";
@@ -38,16 +38,20 @@ async function ServicesContent({ searchParams }: PageProps) {
         : params.kesiapanIntegrasi && params.kesiapanIntegrasi !== "all"
           ? params.kesiapanIntegrasi
           : undefined,
+    namaAplikasi: params.namaAplikasi && params.namaAplikasi !== "all"
+      ? params.namaAplikasi
+      : undefined,
     page: params.page ? Number(params.page) : 1,
     pageSize: 10,
     sortBy: params.sortBy ?? "updatedAt",
     sortOrder: (params.sortOrder as "asc" | "desc") ?? "desc",
   };
 
-  const [data, ukes, kelompokOptions] = await Promise.all([
+  const [data, ukes, kelompokOptions, namaAplikasiOptions] = await Promise.all([
     getServices(filters),
     getUkes(),
     getKelompokLayananOptions(),
+    getNamaAplikasiOptions(),
   ]);
 
   const toOption = (items: { id: string; code?: string; name: string }[]) =>
@@ -61,6 +65,7 @@ async function ServicesContent({ searchParams }: PageProps) {
       data={data}
       ukes={toOption(ukes)}
       kelompokOptions={kelompokOptions}
+      namaAplikasiOptions={namaAplikasiOptions}
       canWrite={canWrite(session.role)}
       defaultUkeId={session.ukeId ?? undefined}
       hideUkeFilter={session.role === "OPERATOR_UKE"}

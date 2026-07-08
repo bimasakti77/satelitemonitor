@@ -44,7 +44,9 @@ export interface ExecutiveDashboardData {
     totalServices: number;
     totalKelompok: number;
     totalJenisLayanan: number;
+    totalNamaAplikasi: number;
   };
+  namaAplikasiList: string[];
   chartByUke: { code: string; name: string; count: number }[];
   jenisLayananByUke: { code: string; name: string; count: number }[];
   chartByIntegration: { key: "Q1" | "Q2" | "Q3"; label: string; count: number }[];
@@ -229,13 +231,24 @@ export async function getExecutiveDashboard(
     count: integrationCounts[key],
   }));
 
+  const namaAplikasiSet = new Set<string>();
+  for (const s of services) {
+    const name = s.namaAplikasi?.trim();
+    if (name) namaAplikasiSet.add(name);
+  }
+  const namaAplikasiList = Array.from(namaAplikasiSet).sort((a, b) =>
+    a.localeCompare(b, "id")
+  );
+
   return {
     years: yearRows.map((r) => r.tahunPekerjaan),
     summary: {
       totalServices: items.length,
       totalKelompok: kelompokSet.size,
       totalJenisLayanan: jenisSet.size,
+      totalNamaAplikasi: namaAplikasiList.length,
     },
+    namaAplikasiList,
     chartByUke,
     jenisLayananByUke,
     chartByIntegration,

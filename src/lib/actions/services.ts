@@ -17,6 +17,7 @@ export interface ServiceFilters {
   kelompokLayanan?: string;
   tahunPekerjaan?: number;
   scope?: string;
+  namaAplikasi?: string;
   sudahSuperApps?: boolean;
   kesiapanIntegrasi?: string;
   page?: number;
@@ -44,6 +45,7 @@ function buildWhere(
   if (filters.kelompokLayanan) where.kelompokLayanan = filters.kelompokLayanan;
   if (filters.tahunPekerjaan) where.tahunPekerjaan = filters.tahunPekerjaan;
   if (filters.scope) where.scope = filters.scope as "INTERNAL" | "EKSTERNAL";
+  if (filters.namaAplikasi) where.namaAplikasi = filters.namaAplikasi;
   if (filters.sudahSuperApps !== undefined)
     where.sudahSuperApps = filters.sudahSuperApps;
   if (filters.kesiapanIntegrasi)
@@ -443,11 +445,25 @@ export async function deleteAllServices(
   return { success: true, data: { count: services.length } };
 }
 
-export async function getServiceHistory(serviceId: string) {
-  await requireRole(["ADMINISTRATOR", "OPERATOR_UKE", "EXECUTIVE"]);
-  return prisma.serviceHistory.findMany({
-    where: { serviceId },
-    orderBy: { createdAt: "desc" },
-    include: { user: { select: { name: true, email: true } } },
+export async function getNamaAplikasiOptions() {
+  const session = await requireRole(["ADMINISTRATOR", "OPERATOR_UKE", "EXECUTIVE"]);
+
+  const where: Prisma.ServiceWhereInput = {
+    isDeleted: false,
+    namaAplikasi: { not: null },
+    ...(session.role === "OPERATOR_UKE" && session.ukeId
+      ? { ukeId: session.ukeId }
+      : {}),
+  };
+
+  const rows = await prisma.service.findMany({
+    where,
+    select: { namaAplikasi: true },
+    distinct: ["namaAplikasi"],
+    orderBy: { namaAplikasi: "asc" },
   });
+
+  return rows
+    .map((row) => row.namaAplikasi?.trim())
+    .filter((name): name is string => Boolean(name));
 }
