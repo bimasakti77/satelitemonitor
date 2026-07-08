@@ -18,6 +18,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { CHART_COLORS, INTEGRATION_LABELS } from "@/lib/constants";
+import type { LabelProps } from "recharts";
 
 interface ChartCardProps {
   title: string;
@@ -155,16 +156,17 @@ const countLabelProps = {
 } as const;
 
 function createIntegrationSegmentLabel(dataKey: "Q1" | "Q2" | "Q3") {
-  return (props: {
-    x?: number;
-    y?: number;
-    width?: number;
-    height?: number;
-    payload?: { Q1?: number; Q2?: number; Q3?: number };
-  }) => {
-    const { x = 0, y = 0, width = 0, height = 0, payload } = props;
+  return (props: LabelProps) => {
+    const x = Number(props.x ?? 0);
+    const y = Number(props.y ?? 0);
+    const width = Number(props.width ?? 0);
+    const height = Number(props.height ?? 0);
+    const payload = (props as LabelProps & { payload?: { Q1?: number; Q2?: number; Q3?: number } })
+      .payload;
     const count = payload?.[dataKey];
-    if (!count || width < 18) return null;
+    if (!count || width < 18) {
+      return <g />;
+    }
 
     return (
       <text
