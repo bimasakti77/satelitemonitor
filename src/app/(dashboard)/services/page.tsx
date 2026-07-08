@@ -17,7 +17,7 @@ async function ServicesContent({ searchParams }: PageProps) {
   const session = await requireAuth();
   const params = await searchParams;
 
-  const filters = {
+  const namaAplikasiOptionFilters = {
     search: params.search,
     ukeId: params.ukeId,
     kelompokLayanan: params.kelompokLayanan,
@@ -38,6 +38,10 @@ async function ServicesContent({ searchParams }: PageProps) {
         : params.kesiapanIntegrasi && params.kesiapanIntegrasi !== "all"
           ? params.kesiapanIntegrasi
           : undefined,
+  };
+
+  const filters = {
+    ...namaAplikasiOptionFilters,
     namaAplikasi: params.namaAplikasi && params.namaAplikasi !== "all"
       ? params.namaAplikasi
       : undefined,
@@ -51,7 +55,7 @@ async function ServicesContent({ searchParams }: PageProps) {
     getServices(filters),
     getUkes(),
     getKelompokLayananOptions(),
-    getNamaAplikasiOptions(),
+    getNamaAplikasiOptions(namaAplikasiOptionFilters),
   ]);
 
   const toOption = (items: { id: string; code?: string; name: string }[]) =>

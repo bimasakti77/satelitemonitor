@@ -342,7 +342,7 @@ export function ServicesTable({
           </div>
 
           <div className="flex flex-col gap-3 xl:flex-row xl:flex-wrap">
-            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+            <div className="flex items-center gap-3 flex-nowrap rounded-lg border border-border bg-muted/30 px-4 py-3">
               <span className="text-sm font-medium text-foreground shrink-0">Tahun:</span>
               <Select
                 value={tahunFilter}
@@ -362,7 +362,7 @@ export function ServicesTable({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+            <div className="flex items-center gap-3 flex-nowrap rounded-lg border border-border bg-muted/30 px-4 py-3">
               <span className="text-sm font-medium text-foreground shrink-0">Tipe:</span>
               <Select
                 value={scopeFilter}
@@ -379,7 +379,7 @@ export function ServicesTable({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+            <div className="flex items-center gap-3 flex-nowrap rounded-lg border border-border bg-muted/30 px-4 py-3">
               <span className="text-sm font-medium text-foreground shrink-0">SuperApps:</span>
               <Select
                 value={superAppsFilter}
@@ -396,7 +396,7 @@ export function ServicesTable({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+            <div className="flex items-center gap-3 flex-nowrap rounded-lg border border-border bg-muted/30 px-4 py-3">
               <span className="text-sm font-medium text-foreground shrink-0">Kesiapan:</span>
               <Select
                 value={kesiapanFilter}
@@ -415,23 +415,23 @@ export function ServicesTable({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
-              <span className="text-sm font-medium text-foreground shrink-0">Nama Aplikasi:</span>
+            <div className="flex items-center gap-3 flex-nowrap rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <span className="text-sm font-medium text-foreground shrink-0 whitespace-nowrap">
+                Nama Aplikasi:
+              </span>
               <Select
                 value={namaAplikasiFilter}
                 onValueChange={(v) => updateParams("namaAplikasi", v)}
                 disabled={isFilterPending}
               >
-                <SelectTrigger className="h-9 min-w-[180px] max-w-[280px] bg-background">
-                  <SelectValue placeholder="Nama aplikasi" />
+                <SelectTrigger className="h-9 w-[200px] shrink-0 bg-background [&>span]:line-clamp-1 [&>span]:text-left">
+                  <SelectValue placeholder="Semua Aplikasi" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Semua Aplikasi</SelectItem>
                   {namaAplikasiSelectOptions.map((name) => (
-                    <SelectItem key={name} value={name}>
-                      <span className="block max-w-[240px] truncate" title={name}>
-                        {name}
-                      </span>
+                    <SelectItem key={name} value={name} title={name}>
+                      {name}
                     </SelectItem>
                   ))}
                 </SelectContent>

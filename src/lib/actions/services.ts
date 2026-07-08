@@ -445,15 +445,20 @@ export async function deleteAllServices(
   return { success: true, data: { count: services.length } };
 }
 
-export async function getNamaAplikasiOptions() {
+export async function getNamaAplikasiOptions(
+  filters: Omit<
+    ServiceFilters,
+    "namaAplikasi" | "page" | "pageSize" | "sortBy" | "sortOrder"
+  > = {}
+) {
   const session = await requireRole(["ADMINISTRATOR", "OPERATOR_UKE", "EXECUTIVE"]);
 
+  const sessionUkeId =
+    session.role === "OPERATOR_UKE" ? session.ukeId : undefined;
+
   const where: Prisma.ServiceWhereInput = {
-    isDeleted: false,
+    ...buildWhere(filters, sessionUkeId),
     namaAplikasi: { not: null },
-    ...(session.role === "OPERATOR_UKE" && session.ukeId
-      ? { ukeId: session.ukeId }
-      : {}),
   };
 
   const rows = await prisma.service.findMany({
