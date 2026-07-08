@@ -431,11 +431,14 @@ export async function getMonthlyChanges(ukeFilter?: string) {
     }));
 }
 
-export async function getProgressByUke() {
+export async function getProgressByUke(ukeFilter?: string) {
   await requireAuth();
 
   const ukes = await prisma.uke.findMany({
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      ...(ukeFilter ? { id: ukeFilter } : {}),
+    },
     include: {
       services: {
         where: { isDeleted: false },
@@ -457,12 +460,16 @@ export async function getProgressByUke() {
   });
 }
 
-export async function getTopApplications(limit = 10) {
+export async function getTopApplications(limit = 10, ukeFilter?: string) {
   await requireAuth();
 
   const data = await prisma.service.groupBy({
     by: ["namaAplikasi"],
-    where: { isDeleted: false, namaAplikasi: { not: null } },
+    where: {
+      isDeleted: false,
+      namaAplikasi: { not: null },
+      ...(ukeFilter ? { ukeId: ukeFilter } : {}),
+    },
     _count: { id: true },
     orderBy: { _count: { id: "desc" } },
     take: limit,
@@ -495,10 +502,13 @@ export async function getServicesByKelompok(ukeFilter?: string) {
   }));
 }
 
-export async function getRecentChanges(limit = 20) {
+export async function getRecentChanges(limit = 20, ukeFilter?: string) {
   await requireAuth();
 
   return prisma.serviceHistory.findMany({
+    where: ukeFilter
+      ? { service: { ukeId: ukeFilter, isDeleted: false } }
+      : undefined,
     take: limit,
     orderBy: { createdAt: "desc" },
     include: {

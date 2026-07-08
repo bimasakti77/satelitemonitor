@@ -6,10 +6,10 @@ import {
   updateApplication,
   deleteApplication,
 } from "@/lib/actions/applications";
-import { requireAuth } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 
 export default async function ApplicationsPage() {
-  const session = await requireAuth();
+  const session = await requireRole(["ADMINISTRATOR"]);
   const apps = await getApplications(true);
   const canEdit = session.role === "ADMINISTRATOR";
 

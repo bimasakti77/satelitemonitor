@@ -63,6 +63,7 @@ async function ServicesContent({ searchParams }: PageProps) {
       kelompokOptions={kelompokOptions}
       canWrite={canWrite(session.role)}
       defaultUkeId={session.ukeId ?? undefined}
+      hideUkeFilter={session.role === "OPERATOR_UKE"}
     />
   );
 }
@@ -71,7 +72,7 @@ export default function ServicesPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Manajemen Layanan"
+        title="Daftar Layanan"
         description="Kelola data layanan SuperApps sesuai struktur Excel"
       />
       <Suspense fallback={<Skeleton className="h-96 w-full" />}>

@@ -2,10 +2,10 @@ import { PageHeader } from "@/components/layout/page-header";
 import { MasterDataTable } from "@/components/master/master-data-table";
 import { getUkes } from "@/lib/actions/uke";
 import { createUke, updateUke, deleteUke } from "@/lib/actions/uke";
-import { requireAuth } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 
 export default async function UkePage() {
-  const session = await requireAuth();
+  const session = await requireRole(["ADMINISTRATOR"]);
   const ukes = await getUkes(true);
   const canEdit = session.role === "ADMINISTRATOR";
 

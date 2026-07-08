@@ -36,8 +36,11 @@ function buildWhere(
 ): Prisma.ServiceWhereInput {
   const where: Prisma.ServiceWhereInput = { isDeleted: false };
 
-  if (sessionUkeId) where.ukeId = sessionUkeId;
-  if (filters.ukeId) where.ukeId = filters.ukeId;
+  if (sessionUkeId) {
+    where.ukeId = sessionUkeId;
+  } else if (filters.ukeId) {
+    where.ukeId = filters.ukeId;
+  }
   if (filters.kelompokLayanan) where.kelompokLayanan = filters.kelompokLayanan;
   if (filters.tahunPekerjaan) where.tahunPekerjaan = filters.tahunPekerjaan;
   if (filters.scope) where.scope = filters.scope as "INTERNAL" | "EKSTERNAL";

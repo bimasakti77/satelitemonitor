@@ -63,6 +63,7 @@ interface ServicesTableProps {
   kelompokOptions: string[];
   canWrite: boolean;
   defaultUkeId?: string;
+  hideUkeFilter?: boolean;
 }
 
 function parseKesiapanFilter(value: string | null): string | undefined {
@@ -77,6 +78,7 @@ export function ServicesTable({
   kelompokOptions,
   canWrite,
   defaultUkeId,
+  hideUkeFilter = false,
 }: ServicesTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -295,22 +297,24 @@ export function ServicesTable({
                 }}
               />
             </div>
-            <Select
-              value={searchParams.get("ukeId") ?? "all"}
-              onValueChange={(v) => updateParams("ukeId", v === "all" ? "" : v)}
-            >
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="UKE" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua UKE</SelectItem>
-                {ukes.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {!hideUkeFilter && (
+              <Select
+                value={searchParams.get("ukeId") ?? "all"}
+                onValueChange={(v) => updateParams("ukeId", v === "all" ? "" : v)}
+              >
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="UKE" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua UKE</SelectItem>
+                  {ukes.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <Select
               value={kesiapanFilter}
               onValueChange={(v) => updateParams("kesiapanIntegrasi", v)}

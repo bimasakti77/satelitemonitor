@@ -16,7 +16,10 @@ import {
   Sun,
   LogOut,
   ChevronRight,
+  BarChart3,
+  ListTree,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useTheme } from "@wrksz/themes/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -33,16 +36,66 @@ import { APP_SHORT_NAME, ROLE_LABELS } from "@/lib/constants";
 import type { UserRole } from "@prisma/client";
 import { useState } from "react";
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/services", label: "Layanan", icon: FileText },
-  { href: "/master/uke", label: "UKE", icon: Building2, adminOnly: true },
-  { href: "/master/applications", label: "Aplikasi", icon: AppWindow, adminOnly: true },
-  { href: "/import", label: "Import", icon: FileSpreadsheet, writeOnly: true },
-  { href: "/reports", label: "Laporan", icon: FileText },
-  { href: "/notifications", label: "Notifikasi", icon: Bell },
-  { href: "/audit", label: "Audit Log", icon: Shield, adminOnly: true },
+type NavItem = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  writeOnly?: boolean;
+  adminOnly?: boolean;
+  roles?: UserRole[];
+};
+
+type NavSection = {
+  separatorBefore?: boolean;
+  items: NavItem[];
+};
+
+const navSections: NavSection[] = [
+  {
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/services", label: "Daftar Layanan", icon: ListTree },
+      { href: "/reports", label: "Laporan", icon: BarChart3 },
+      {
+        href: "/import",
+        label: "Import / Export Data",
+        icon: FileSpreadsheet,
+        writeOnly: true,
+      },
+    ],
+  },
+  {
+    separatorBefore: true,
+    items: [
+      { href: "/master/uke", label: "UKE", icon: Building2, adminOnly: true },
+      {
+        href: "/master/applications",
+        label: "Aplikasi",
+        icon: AppWindow,
+        adminOnly: true,
+      },
+    ],
+  },
+  {
+    separatorBefore: true,
+    items: [
+      { href: "/notifications", label: "Notifikasi", icon: Bell },
+      {
+        href: "/audit",
+        label: "Audit Log",
+        icon: Shield,
+        roles: ["ADMINISTRATOR", "EXECUTIVE"],
+      },
+    ],
+  },
 ];
+
+function isNavItemVisible(item: NavItem, role: UserRole): boolean {
+  if (item.roles && !item.roles.includes(role)) return false;
+  if (item.writeOnly && role === "EXECUTIVE") return false;
+  if (item.adminOnly && role !== "ADMINISTRATOR") return false;
+  return true;
+}
 
 interface SidebarProps {
   user: { name: string; email: string; role: UserRole };
@@ -53,15 +106,6 @@ export function Sidebar({ user, unreadCount = 0 }: SidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { theme, setTheme } = useTheme();
-
-  const filteredNav = navItems.filter((item) => {
-    if (item.writeOnly && user.role === "EXECUTIVE") return false;
-    if (item.href === "/audit" && user.role === "OPERATOR_UKE") return false;
-    if (item.adminOnly && user.role === "OPERATOR_UKE") {
-      return false;
-    }
-    return true;
-  });
 
   const NavContent = () => (
     <>
@@ -76,30 +120,52 @@ export function Sidebar({ user, unreadCount = 0 }: SidebarProps) {
       </div>
 
       <nav className="flex-1 space-y-1 p-3">
-        {filteredNav.map((item) => {
-          const Icon = item.icon;
-          const active = pathname === item.href || pathname.startsWith(item.href + "/");
+        {navSections.map((section, sectionIndex) => {
+          const visibleItems = section.items.filter((item) =>
+            isNavItemVisible(item, user.role)
+          );
+          if (visibleItems.length === 0) return null;
+
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setMobileOpen(false)}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                active
-                  ? "bg-primary/10 text-primary"
-                  : "text-sidebar-foreground hover:bg-accent hover:text-accent-foreground"
+            <div key={sectionIndex}>
+              {section.separatorBefore && (
+                <div
+                  className="my-3 border-t border-sidebar-border"
+                  role="separator"
+                  aria-hidden="true"
+                />
               )}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              <span className="flex-1">{item.label}</span>
-              {item.href === "/notifications" && unreadCount > 0 && (
-                <Badge variant="default" className="h-5 min-w-5 px-1.5 text-[10px]">
-                  {unreadCount}
-                </Badge>
-              )}
-              {active && <ChevronRight className="h-3 w-3 opacity-50" />}
-            </Link>
+              <div className="space-y-1">
+                {visibleItems.map((item) => {
+                  const Icon = item.icon;
+                  const active =
+                    pathname === item.href || pathname.startsWith(item.href + "/");
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-sidebar-foreground hover:bg-accent hover:text-accent-foreground"
+                      )}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span className="flex-1">{item.label}</span>
+                      {item.href === "/notifications" && unreadCount > 0 && (
+                        <Badge variant="default" className="h-5 min-w-5 px-1.5 text-[10px]">
+                          {unreadCount}
+                        </Badge>
+                      )}
+                      {active && <ChevronRight className="h-3 w-3 opacity-50" />}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
           );
         })}
       </nav>
@@ -126,7 +192,11 @@ export function Sidebar({ user, unreadCount = 0 }: SidebarProps) {
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-              {theme === "dark" ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
+              {theme === "dark" ? (
+                <Sun className="mr-2 h-4 w-4" />
+              ) : (
+                <Moon className="mr-2 h-4 w-4" />
+              )}
               {theme === "dark" ? "Light Mode" : "Dark Mode"}
             </DropdownMenuItem>
             <DropdownMenuSeparator />

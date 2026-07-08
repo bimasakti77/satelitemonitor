@@ -103,8 +103,10 @@ Open [http://localhost:3000](http://localhost:3000)
 | Email | Password | Role |
 |-------|----------|------|
 | admin@kemenkumham.go.id | password123 | Administrator |
-| operator@kemenkumham.go.id | password123 | Operator UKE |
 | executive@kemenkumham.go.id | password123 | Executive |
+| operator-{kode-uke}@kemenkumham.go.id | password123 | Operator UKE (per UKE I) |
+
+Contoh operator UKE: `operator-itjen@kemenkumham.go.id`, `operator-bsk@kemenkumham.go.id`, `operator-setjen@kemenkumham.go.id`, dan seterusnya untuk setiap kode UKE.
 
 ## Database Schema
 

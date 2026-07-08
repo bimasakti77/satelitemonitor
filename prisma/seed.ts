@@ -70,7 +70,7 @@ async function main() {
 
   const admin = await prisma.user.upsert({
     where: { email: "admin@kemenkumham.go.id" },
-    update: {},
+    update: { isActive: true },
     create: {
       email: "admin@kemenkumham.go.id",
       name: "Administrator",
@@ -79,21 +79,34 @@ async function main() {
     },
   });
 
-  const operator = await prisma.user.upsert({
+  for (const uke of UKE_SEED) {
+    const email = `operator-${uke.code.toLowerCase()}@kemenkumham.go.id`;
+    await prisma.user.upsert({
+      where: { email },
+      update: {
+        ukeId: ukeByCode[uke.code].id,
+        name: `Operator ${uke.code}`,
+        role: "OPERATOR_UKE",
+        isActive: true,
+      },
+      create: {
+        email,
+        name: `Operator ${uke.code}`,
+        passwordHash,
+        role: "OPERATOR_UKE",
+        ukeId: ukeByCode[uke.code].id,
+      },
+    });
+  }
+
+  await prisma.user.updateMany({
     where: { email: "operator@kemenkumham.go.id" },
-    update: { ukeId: ukeByCode.ITJEN.id, name: "Operator ITJEN" },
-    create: {
-      email: "operator@kemenkumham.go.id",
-      name: "Operator ITJEN",
-      passwordHash,
-      role: "OPERATOR_UKE",
-      ukeId: ukeByCode.ITJEN.id,
-    },
+    data: { isActive: false },
   });
 
   await prisma.user.upsert({
     where: { email: "executive@kemenkumham.go.id" },
-    update: {},
+    update: { isActive: true },
     create: {
       email: "executive@kemenkumham.go.id",
       name: "Executive Viewer",
@@ -205,9 +218,12 @@ async function main() {
   });
 
   console.log("Seed completed!");
-  console.log("  admin@kemenkumham.go.id / password123");
-  console.log(`  operator@kemenkumham.go.id / password123 (${operator.name})`);
-  console.log("  executive@kemenkumham.go.id / password123");
+  console.log("  admin@kemenkumham.go.id / password123 (Administrator)");
+  console.log("  executive@kemenkumham.go.id / password123 (Executive)");
+  console.log("  Operator UKE (password123):");
+  for (const uke of UKE_SEED) {
+    console.log(`    operator-${uke.code.toLowerCase()}@kemenkumham.go.id (${uke.code})`);
+  }
 }
 
 main()

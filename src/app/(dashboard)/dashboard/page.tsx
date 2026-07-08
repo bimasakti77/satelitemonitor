@@ -4,7 +4,7 @@ import { DashboardClient } from "@/components/dashboard/dashboard-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getExecutiveDashboard } from "@/lib/actions/dashboard";
 import { getServerHealthStatuses } from "@/lib/actions/server-health";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getOperatorUkeFilter } from "@/lib/auth";
 
 interface PageProps {
   searchParams: Promise<Record<string, string | undefined>>;
@@ -23,8 +23,7 @@ async function DashboardContent({ searchParams }: PageProps) {
       ? selectedScope
       : undefined;
 
-  const ukeId =
-    session.role === "OPERATOR_UKE" && session.ukeId ? session.ukeId : undefined;
+  const ukeId = getOperatorUkeFilter(session);
 
   const [data, serverHealth] = await Promise.all([
     getExecutiveDashboard({ tahunPekerjaan, ukeId, scope }),

@@ -133,12 +133,26 @@ export function ServerHealthPanel({ initialHealth }: ServerHealthPanelProps) {
                 </div>
               </div>
 
-              <p className="text-xs text-muted-foreground">
-                {item.message ?? "—"}
-                <span className="block mt-1">
-                  Dicek: {formatCheckedAt(item.checkedAt)}
-                </span>
-              </p>
+              <div className="flex items-end justify-between gap-3">
+                <p className="text-xs text-muted-foreground min-w-0 flex-1">
+                  {item.message ?? "—"}
+                  <span className="block mt-1">
+                    Dicek: {formatCheckedAt(item.checkedAt)}
+                  </span>
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 shrink-0"
+                  asChild
+                >
+                  <a href={item.url} target="_blank" rel="noopener noreferrer">
+                    Open
+                    <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                  </a>
+                </Button>
+              </div>
             </div>
           ))}
         </div>

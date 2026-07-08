@@ -124,6 +124,10 @@ export function isReadOnly(role: UserRole): boolean {
   return role === "EXECUTIVE";
 }
 
+export function getOperatorUkeFilter(session: SessionUser): string | undefined {
+  return session.role === "OPERATOR_UKE" && session.ukeId ? session.ukeId : undefined;
+}
+
 export async function getUserFromDb(id: string) {
   return prisma.user.findUnique({
     where: { id },
