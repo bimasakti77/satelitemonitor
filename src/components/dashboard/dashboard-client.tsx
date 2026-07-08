@@ -48,12 +48,156 @@ import { INTEGRATION_LABELS, SCOPE_LABELS } from "@/lib/constants";
 import type { DashboardServiceItem, ExecutiveDashboardData } from "@/lib/actions/dashboard";
 import type { ServerHealthResult } from "@/lib/server-health";
 import { ServerHealthPanel } from "@/components/dashboard/server-health-panel";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 interface DashboardClientProps {
   data: ExecutiveDashboardData;
   selectedTahun: string;
   selectedScope: string;
   serverHealth: ServerHealthResult[];
+}
+
+function jenisLayananDistinctKey(kelompokLayanan: string, jenisLayanan: string): string {
+  return `${kelompokLayanan.toLowerCase().trim()}|${jenisLayanan.toLowerCase().trim()}`;
+}
+
+function UkeJenisLayananCards({
+  ukes,
+  services,
+}: {
+  ukes: { code: string; name: string; count: number }[];
+  services: DashboardServiceItem[];
+}) {
+  const [selectedUke, setSelectedUke] = useState<{ code: string; name: string } | null>(
+    null
+  );
+
+  const modalItems = useMemo(() => {
+    if (!selectedUke) return [];
+
+    const map = new Map<string, DashboardServiceItem>();
+    for (const service of services) {
+      if (service.ukeCode !== selectedUke.code) continue;
+      const key = jenisLayananDistinctKey(service.kelompokLayanan, service.jenisLayanan);
+      if (!map.has(key)) map.set(key, service);
+    }
+
+    return Array.from(map.values()).sort(
+      (a, b) =>
+        a.kelompokLayanan.localeCompare(b.kelompokLayanan) ||
+        a.jenisLayanan.localeCompare(b.jenisLayanan)
+    );
+  }, [services, selectedUke]);
+
+  return (
+    <>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {ukes.map((uke) => (
+          <Card
+            key={uke.code}
+            className="overflow-hidden transition-colors hover:border-primary/40 hover:bg-accent/30"
+          >
+            <button
+              type="button"
+              onClick={() => setSelectedUke({ code: uke.code, name: uke.name })}
+              className={cn(
+                "block w-full p-4 text-left",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl"
+              )}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="font-mono text-xs font-semibold text-primary">{uke.code}</p>
+                  <p className="mt-0.5 truncate text-sm text-muted-foreground" title={uke.name}>
+                    {uke.name}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-primary/10 p-2 shrink-0">
+                  <Building2 className="h-4 w-4 text-primary" />
+                </div>
+              </div>
+              <p className="mt-3 text-2xl font-bold tracking-tight">{uke.count}</p>
+              <p className="text-xs text-muted-foreground">kelompok + jenis unik</p>
+              <p className="mt-2 text-[10px] text-primary/80">Klik untuk detail</p>
+            </button>
+          </Card>
+        ))}
+      </div>
+
+      <Dialog
+        open={selectedUke !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedUke(null);
+        }}
+      >
+        <DialogContent className="flex max-h-[85vh] max-w-3xl flex-col gap-4">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedUke?.code} — {selectedUke?.name}
+            </DialogTitle>
+            <DialogDescription>
+              {modalItems.length} kombinasi kelompok + jenis layanan unik
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-border">
+            {modalItems.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Tidak ada layanan untuk UKE ini
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-10">No</TableHead>
+                    <TableHead>Kelompok Layanan</TableHead>
+                    <TableHead>Jenis Layanan</TableHead>
+                    <TableHead>Tahun</TableHead>
+                    <TableHead>Tipe</TableHead>
+                    <TableHead>Kesiapan</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {modalItems.map((service, index) => (
+                    <TableRow key={service.id}>
+                      <TableCell className="text-muted-foreground">{index + 1}</TableCell>
+                      <TableCell className="max-w-[140px] truncate">
+                        {service.kelompokLayanan}
+                      </TableCell>
+                      <TableCell className="max-w-[240px] font-medium">
+                        <Link
+                          href={`/services/${service.id}`}
+                          className="hover:text-primary hover:underline"
+                        >
+                          {service.jenisLayanan}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{service.tahunPekerjaan}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{SCOPE_LABELS[service.scope]}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {INTEGRATION_LABELS[service.kesiapanIntegrasi]}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }
 
 function ServicesTableSection({
@@ -545,29 +689,7 @@ export function DashboardClient({
             <p className="text-xs text-muted-foreground">
               Jumlah kombinasi kelompok + jenis layanan unik di setiap unit kerja eselon I
             </p>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {data.jenisLayananByUke.map((uke) => (
-                <Card key={uke.code} className="overflow-hidden">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-mono text-xs font-semibold text-primary">
-                          {uke.code}
-                        </p>
-                        <p className="mt-0.5 truncate text-sm text-muted-foreground" title={uke.name}>
-                          {uke.name}
-                        </p>
-                      </div>
-                      <div className="rounded-lg bg-primary/10 p-2 shrink-0">
-                        <Building2 className="h-4 w-4 text-primary" />
-                      </div>
-                    </div>
-                    <p className="mt-3 text-2xl font-bold tracking-tight">{uke.count}</p>
-                    <p className="text-xs text-muted-foreground">kelompok + jenis unik</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <UkeJenisLayananCards ukes={data.jenisLayananByUke} services={data.services} />
           </div>
         )}
       </section>
