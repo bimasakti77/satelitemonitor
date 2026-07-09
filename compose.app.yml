@@ -1,0 +1,59 @@
+services:
+  satelitemonitor-db:
+    image: postgres:16-alpine
+    container_name: satelitemonitor-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-superapps_monitor}
+    env_file:
+      - .env
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-satelitemonitor-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  satelitemonitor-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: ${REGISTRY:-localhost}/satelitemonitor-app:${TAG_APP:-latest}
+    container_name: satelitemonitor-app
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@satelitemonitor-db:5432/${POSTGRES_DB:-superapps_monitor}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-change-this-jwt-secret-in-production}
+      NEXT_PUBLIC_APP_NAME: SuperApps Executive Monitoring System
+      RUN_SEED: ${RUN_SEED:-true}
+    env_file:
+      - .env
+    depends_on:
+      satelitemonitor-db:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    networks:
+      - app-satelitemonitor-network
+
+volumes:
+  postgres_data:
+    name: superapps_postgres_data
+
+networks:
+  app-satelitemonitor-network:
+    name: app-satelitemonitor-network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.103.0/24
+          gateway: 192.168.103.1

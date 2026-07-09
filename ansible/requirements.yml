@@ -1,0 +1,4 @@
+collections:
+  - community.hashi_vault
+  - community.docker
+  - community.crypto

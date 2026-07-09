@@ -1,0 +1,6 @@
+[satelitemonitor-servers]
+172.16.1.145 ansible_host=172.16.1.145
+
+[satelitemonitor-servers:vars]
+ansible_user=ansible
+ansible_port=22
