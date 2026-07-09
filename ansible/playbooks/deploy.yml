@@ -1,0 +1,10 @@
+---
+- name: Deploy satelitemonitor using Vault SSH CA
+  hosts: satelitemonitor-servers
+  gather_facts: false
+  vars:
+    ansible_verbosity: 3
+  environment:
+    COMPOSE_PROJECT_NAME: satelitemonitor
+  roles:
+    - satelitemonitor

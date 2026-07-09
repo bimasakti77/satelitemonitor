@@ -1,0 +1,100 @@
+---
+# Deploy satelitemonitor — dirs → .env files → docker compose
+
+- name: Ensure app directory exists
+  file:
+    path: "{{ app_dir }}"
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: Write .env for app
+  copy:
+    dest: "{{ app_dir }}/.env"
+    content: |
+      {% for key, value in vault_app_data.data.data.data.items() %}
+      {{ key }}={{ value }}
+      {% endfor %}
+      DATABASE_URL=postgresql://{{ db_user }}:{{ db_pass | urlencode }}@{{ db_host }}:{{ db_port }}/{{ db_name }}?schema={{ db_schema }}
+      POSTGRES_USER={{ db_user }}
+      POSTGRES_PASSWORD={{ db_pass }}
+      POSTGRES_DB={{ db_name }}
+      POSTGRES_PORT={{ db_port_host }}
+    mode: "0600"
+  become: true
+  no_log: true
+
+- name: Copy compose files
+  copy:
+    src: "{{ lookup('env', 'WORKSPACE') }}/{{ item }}"
+    dest: "{{ app_dir }}/{{ item }}"
+    mode: "0644"
+  loop:
+    - compose.app.yml
+  become: true
+
+- name: Login to Harbor
+  community.docker.docker_login:
+    registry_url: "{{ registry_host }}"
+    username: "{{ harbor_username }}"
+    password: "{{ harbor_password }}"
+  become: true
+  no_log: true
+
+- name: Deploy database (first run only)
+  when: should_deploy_db | bool
+  become: true
+  environment:
+    COMPOSE_PROJECT_NAME: "{{ compose_project_name }}"
+    TAG_APP: "{{ tag_app }}"
+    REGISTRY: "{{ registry }}"
+  block:
+    - name: Pull DB image
+      command:
+        cmd: docker compose -f compose.app.yml pull satelitemonitor-db
+        chdir: "{{ app_dir }}"
+      register: db_pull
+      changed_when: "'Downloaded' in db_pull.stdout"
+
+    - name: Start DB container
+      command:
+        cmd: docker compose -f compose.app.yml up -d satelitemonitor-db
+        chdir: "{{ app_dir }}"
+
+    - name: Wait for DB to become healthy
+      command:
+        cmd: >
+          docker compose -f compose.app.yml exec -T satelitemonitor-db
+          pg_isready -U {{ db_user }}
+        chdir: "{{ app_dir }}"
+      register: db_ready
+      retries: 10
+      delay: 3
+      until: db_ready.rc == 0
+
+- name: Deploy app services
+  become: true
+  environment:
+    COMPOSE_PROJECT_NAME: "{{ compose_project_name }}"
+    TAG_APP: "{{ tag_app }}"
+    REGISTRY: "{{ registry }}"
+  block:
+    - name: Pull app images
+      command:
+        cmd: >
+          docker compose -f compose.app.yml
+          --env-file .env
+          pull satelitemonitor-app
+        chdir: "{{ app_dir }}"
+
+    - name: Start app containers with cleanup
+      command:
+        cmd: >
+          docker compose -f compose.app.yml
+          --env-file .env
+          up -d --remove-orphans
+        chdir: "{{ app_dir }}"
+
+- name: Remove unused Docker images
+  become: true
+  command: docker image prune -af

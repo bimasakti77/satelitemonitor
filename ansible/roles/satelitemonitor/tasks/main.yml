@@ -1,0 +1,28 @@
+---
+# Orchestrator: SSH CA → env secrets → deploy
+
+- name: Generate unique SSH key path
+  set_fact:
+    ssh_key_path: "/tmp/ansible_ssh_{{ lookup('pipe', 'uuidgen') }}"
+  delegate_to: localhost
+  run_once: true
+
+- block:
+    - name: Vault SSH CA + env secrets
+      include_tasks: vault.yml
+
+    - name: Deploy application
+      include_tasks: app.yml
+
+  always:
+    - name: Cleanup ephemeral SSH material
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ ssh_key_path }}"
+        - "{{ ssh_key_path }}.pub"
+        - "{{ ssh_key_path }}-cert.pub"
+      delegate_to: localhost
+      run_once: true
+      changed_when: false
