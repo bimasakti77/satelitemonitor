@@ -34,7 +34,12 @@ pipeline {
             environment {
                 VERSION_APP    = sh(script: "jq -r .version package.json", returnStdout: true).trim()
                 COMMIT         = "${env.GIT_COMMIT.take(7)}"
-                APP_BRANCH     = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                APP_BRANCH     = sh(script: '''#!/bin/bash
+                    if [ -n "$BRANCH_NAME" ]; then echo "$BRANCH_NAME"
+                    elif [ -n "$GIT_BRANCH" ]; then echo "$GIT_BRANCH" | sed 's|^origin/||'
+                    else git rev-parse --abbrev-ref HEAD || echo "unknown"
+                    fi
+                ''', returnStdout: true).trim()
                 TAG_APP        = "${VERSION_APP}-${COMMIT}-${env.BUILD_NUMBER}"
                 COMMIT_AUTHOR  = sh(script: 'git log -1 --pretty=format:"%an"', returnStdout: true).trim()
                 COMMIT_MESSAGE = sh(script: 'git log -1 --pretty=format:"%s"', returnStdout: true).trim()
@@ -193,7 +198,12 @@ pipeline {
                             }
 
                             env.COMMIT = sh(script: 'git rev-parse --short HEAD 2>/dev/null || echo "unknown"', returnStdout: true).trim()
-                            env.APP_BRANCH = sh(script: 'git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown"', returnStdout: true).trim()
+                            env.APP_BRANCH = sh(script: '''#!/bin/bash
+                                if [ -n "$BRANCH_NAME" ]; then echo "$BRANCH_NAME"
+                                elif [ -n "$GIT_BRANCH" ]; then echo "$GIT_BRANCH" | sed 's|^origin/||'
+                                else git rev-parse --abbrev-ref HEAD || echo "unknown"
+                                fi
+                            ''', returnStdout: true).trim()
                             env.COMMIT_AUTHOR = sh(script: 'git log -1 --pretty=format:"%an" 2>/dev/null || echo "unknown"', returnStdout: true).trim()
                             env.COMMIT_MESSAGE = sh(script: 'git log -1 --pretty=format:"%s" 2>/dev/null || echo "unknown"', returnStdout: true).trim()
 
