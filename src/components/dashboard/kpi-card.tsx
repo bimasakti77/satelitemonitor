@@ -6,21 +6,25 @@ interface KpiCardProps {
   title: string;
   value: number | string;
   description?: string;
+  note?: string;
   icon: LucideIcon;
   trend?: "up" | "down" | "neutral";
   format?: "number" | "percent" | "raw";
   className?: string;
   onClick?: () => void;
+  children?: React.ReactNode;
 }
 
 export function KpiCard({
   title,
   value,
   description,
+  note,
   icon: Icon,
   format = "number",
   className,
   onClick,
+  children,
 }: KpiCardProps) {
   const displayValue =
     format === "percent" && typeof value === "number"
@@ -42,7 +46,10 @@ export function KpiCard({
       <Component
         type={onClick ? "button" : undefined}
         onClick={onClick}
-        className={cn("block w-full", onClick && "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl")}
+        className={cn(
+          "block w-full",
+          onClick && "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl"
+        )}
       >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -56,6 +63,12 @@ export function KpiCard({
           <div className="text-2xl font-bold tracking-tight">{displayValue}</div>
           {description && (
             <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+          )}
+          {children}
+          {note && (
+            <p className="mt-3 border-t border-border/60 pt-2 text-[10px] leading-relaxed text-muted-foreground">
+              {note}
+            </p>
           )}
           {onClick && (
             <p className="mt-2 text-[10px] text-primary/80">Klik untuk detail</p>

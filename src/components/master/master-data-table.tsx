@@ -29,7 +29,9 @@ import type { ActionResult } from "@/lib/actions/auth";
 interface Column {
   key: string;
   label: string;
-  type?: "text" | "active-badge" | "service-count";
+  type?: "text" | "active-badge" | "boolean-badge" | "service-count";
+  trueLabel?: string;
+  falseLabel?: string;
 }
 
 interface MasterDataTableProps<T extends { id: string; isActive?: boolean }> {
@@ -111,6 +113,14 @@ export function MasterDataTable<T extends { id: string; isActive?: boolean }>({
             {item.isActive ? "Aktif" : "Nonaktif"}
           </Badge>
         );
+      case "boolean-badge": {
+        const value = Boolean(record[col.key]);
+        return (
+          <Badge variant={value ? "success" : "secondary"}>
+            {value ? (col.trueLabel ?? "Ya") : (col.falseLabel ?? "Tidak")}
+          </Badge>
+        );
+      }
       case "service-count": {
         const count = (record._count as { services?: number } | undefined)?.services ?? 0;
         return String(count);

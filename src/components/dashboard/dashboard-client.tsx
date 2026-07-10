@@ -56,6 +56,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  ApplicationScopeFilter,
+  countByApplicationScope,
+  filterByApplicationScope,
+  type ApplicationScopeFilterValue,
+} from "@/components/master/application-scope-filter";
 import { cn } from "@/lib/utils";
 
 interface DashboardClientProps {
@@ -68,32 +74,66 @@ interface DashboardClientProps {
 function NamaAplikasiDialog({
   open,
   onOpenChange,
-  names,
+  items,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  names: string[];
+  items: { name: string; isPublic: boolean }[];
 }) {
+  const [scopeFilter, setScopeFilter] =
+    useState<ApplicationScopeFilterValue>("all");
+
+  const counts = useMemo(() => countByApplicationScope(items), [items]);
+  const filteredItems = useMemo(
+    () => filterByApplicationScope(items, scopeFilter),
+    [items, scopeFilter]
+  );
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) setScopeFilter("all");
+        onOpenChange(next);
+      }}
+    >
       <DialogContent className="flex max-h-[85vh] max-w-lg flex-col gap-4">
         <DialogHeader>
           <DialogTitle>Daftar Nama Aplikasi</DialogTitle>
           <DialogDescription>
-            {names.length} nama aplikasi unik — diurutkan A–Z
+            {filteredItems.length} dari {items.length} nama aplikasi — diurutkan A–Z
           </DialogDescription>
         </DialogHeader>
+
+        <ApplicationScopeFilter
+          value={scopeFilter}
+          onValueChange={setScopeFilter}
+          counts={counts}
+          listClassName="h-auto flex-wrap"
+        />
+
         <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-border">
-          {names.length === 0 ? (
+          {filteredItems.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
               Tidak ada nama aplikasi
             </p>
           ) : (
             <ol className="divide-y divide-border">
-              {names.map((name, index) => (
-                <li key={name} className="px-4 py-2.5 text-sm">
-                  <span className="mr-2 text-muted-foreground">{index + 1}.</span>
-                  {name}
+              {filteredItems.map((item, index) => (
+                <li
+                  key={item.name}
+                  className="flex items-start justify-between gap-3 px-4 py-2.5 text-sm"
+                >
+                  <span>
+                    <span className="mr-2 text-muted-foreground">{index + 1}.</span>
+                    {item.name}
+                  </span>
+                  <Badge
+                    variant={item.isPublic ? "success" : "secondary"}
+                    className="shrink-0"
+                  >
+                    {item.isPublic ? "Publik" : "Internal"}
+                  </Badge>
                 </li>
               ))}
             </ol>
@@ -726,13 +766,29 @@ export function DashboardClient({
             description="Nama aplikasi unik"
             icon={AppWindow}
             onClick={() => setNamaAplikasiDialogOpen(true)}
-          />
+            note="Jumlah dan Nama Aplikasi diambil dari list layanan yang akan digabungkan ke Superapps, sehingga bukan keseluruhan yang dimiliki oleh Kementerian"
+          >
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+              <span className="text-muted-foreground">
+                Layanan Publik:{" "}
+                <span className="font-semibold text-foreground">
+                  {data.summary.totalAplikasiPublik}
+                </span>
+              </span>
+              <span className="text-muted-foreground">
+                Internal:{" "}
+                <span className="font-semibold text-foreground">
+                  {data.summary.totalAplikasiInternal}
+                </span>
+              </span>
+            </div>
+          </KpiCard>
         </div>
 
         <NamaAplikasiDialog
           open={namaAplikasiDialogOpen}
           onOpenChange={setNamaAplikasiDialogOpen}
-          names={data.namaAplikasiList}
+          items={data.namaAplikasiList}
         />
 
         {data.jenisLayananByUke.length > 0 && (

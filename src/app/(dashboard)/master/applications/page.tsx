@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/layout/page-header";
-import { MasterDataTable } from "@/components/master/master-data-table";
+import { ApplicationsMasterTable } from "@/components/master/applications-master-table";
+import { ExtractApplicationsButton } from "@/components/master/extract-applications-button";
 import {
   getApplications,
   createApplication,
@@ -17,26 +18,16 @@ export default async function ApplicationsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Existing Applications"
-        description="Kelola daftar aplikasi existing"
-      />
-      <MasterDataTable
-        title="Aplikasi"
-        description="Daftar aplikasi existing"
+        description="Kelola daftar aplikasi existing. Extract Data akan mengosongkan tabel lalu mengisi ulang dari nama aplikasi di daftar layanan."
+      >
+        {canEdit && <ExtractApplicationsButton />}
+      </PageHeader>
+      <ApplicationsMasterTable
         items={apps}
         canEdit={canEdit}
         createAction={createApplication}
         updateAction={updateApplication}
         deleteAction={deleteApplication}
-        fields={[
-          { name: "name", label: "Nama", required: true },
-          { name: "vendor", label: "Vendor" },
-          { name: "description", label: "Deskripsi", type: "textarea" },
-        ]}
-        columns={[
-          { key: "name", label: "Nama" },
-          { key: "vendor", label: "Vendor" },
-          { key: "isActive", label: "Status", type: "active-badge" },
-        ]}
       />
     </div>
   );

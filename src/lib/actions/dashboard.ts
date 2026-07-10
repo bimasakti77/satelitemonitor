@@ -45,8 +45,10 @@ export interface ExecutiveDashboardData {
     totalKelompok: number;
     totalJenisLayanan: number;
     totalNamaAplikasi: number;
+    totalAplikasiPublik: number;
+    totalAplikasiInternal: number;
   };
-  namaAplikasiList: string[];
+  namaAplikasiList: { name: string; isPublic: boolean }[];
   chartByUke: { code: string; name: string; count: number }[];
   jenisLayananByUke: { code: string; name: string; count: number }[];
   chartByIntegration: { key: "Q1" | "Q2" | "Q3"; label: string; count: number }[];
@@ -120,7 +122,7 @@ export async function getExecutiveDashboard(
   const where = buildServiceWhere(filters);
   const yearWhere = buildBaseWhere(filters);
 
-  const [services, yearRows] = await Promise.all([
+  const [services, yearRows, applications] = await Promise.all([
     prisma.service.findMany({
       where,
       include: { uke: { select: { id: true, code: true, name: true } } },
@@ -135,6 +137,10 @@ export async function getExecutiveDashboard(
       select: { tahunPekerjaan: true },
       distinct: ["tahunPekerjaan"],
       orderBy: { tahunPekerjaan: "desc" },
+    }),
+    prisma.application.findMany({
+      where: { isActive: true },
+      select: { name: true, isPublic: true },
     }),
   ]);
 
@@ -231,14 +237,34 @@ export async function getExecutiveDashboard(
     count: integrationCounts[key],
   }));
 
+  const isPublicByName = new Map(
+    applications.map((a) => [a.name.trim(), a.isPublic] as const)
+  );
+
+  // Fallback: jika Application belum di-extract, hitung dari scope Service
+  const scopePublicByName = new Map<string, boolean>();
+  for (const s of services) {
+    const name = s.namaAplikasi?.trim();
+    if (!name) continue;
+    if (s.scope === "EKSTERNAL") scopePublicByName.set(name, true);
+    else if (!scopePublicByName.has(name)) scopePublicByName.set(name, false);
+  }
+
   const namaAplikasiSet = new Set<string>();
   for (const s of services) {
     const name = s.namaAplikasi?.trim();
     if (name) namaAplikasiSet.add(name);
   }
-  const namaAplikasiList = Array.from(namaAplikasiSet).sort((a, b) =>
-    a.localeCompare(b, "id")
-  );
+
+  const namaAplikasiList = Array.from(namaAplikasiSet)
+    .sort((a, b) => a.localeCompare(b, "id"))
+    .map((name) => ({
+      name,
+      isPublic: isPublicByName.get(name) ?? scopePublicByName.get(name) ?? false,
+    }));
+
+  const totalAplikasiPublik = namaAplikasiList.filter((a) => a.isPublic).length;
+  const totalAplikasiInternal = namaAplikasiList.length - totalAplikasiPublik;
 
   return {
     years: yearRows.map((r) => r.tahunPekerjaan),
@@ -247,6 +273,8 @@ export async function getExecutiveDashboard(
       totalKelompok: kelompokSet.size,
       totalJenisLayanan: jenisSet.size,
       totalNamaAplikasi: namaAplikasiList.length,
+      totalAplikasiPublik,
+      totalAplikasiInternal,
     },
     namaAplikasiList,
     chartByUke,

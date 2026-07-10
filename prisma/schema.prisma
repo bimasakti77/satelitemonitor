@@ -73,6 +73,8 @@ model Application {
   name        String   @unique
   description String?
   vendor      String?
+  /// true jika ada Service dengan namaAplikasi yang sama dan scope EKSTERNAL
+  isPublic    Boolean  @default(false)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
