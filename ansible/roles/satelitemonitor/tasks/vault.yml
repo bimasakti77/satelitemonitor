@@ -1,0 +1,85 @@
+---
+# Vault SSH CA + env secrets
+
+# ---- SSH CA ----
+
+- name: Login to Vault (SSH CA)
+  community.hashi_vault.vault_login:
+    auth_method: approle
+    role_id: "{{ vault_ssh_role_id }}"
+    secret_id: "{{ vault_ssh_secret_id }}"
+  register: vault_ssh_login
+  delegate_to: localhost
+  run_once: true
+
+- name: Generate ephemeral SSH keypair
+  openssh_keypair:
+    path: "{{ ssh_key_path }}"
+    type: "{{ ssh_key_type }}"
+    mode: "0600"
+  delegate_to: localhost
+  run_once: true
+
+- name: Sign SSH public key via Vault
+  community.hashi_vault.vault_write:
+    path: "ssh/sign/{{ vault_ssh_role }}"
+    token: "{{ vault_ssh_login.login.auth.client_token }}"
+    data:
+      public_key: "{{ lookup('file', ssh_key_path + '.pub') }}"
+      valid_principals: "{{ ssh_user }}"
+  register: vault_ssh_response
+  delegate_to: localhost
+  run_once: true
+
+- name: Write signed SSH certificate
+  copy:
+    content: "{{ vault_ssh_response.data.data.signed_key }}"
+    dest: "{{ ssh_key_path }}-cert.pub"
+    mode: "0600"
+  delegate_to: localhost
+  run_once: true
+
+- name: Configure Ansible to use ephemeral SSH key
+  set_fact:
+    ansible_user: "{{ ssh_user }}"
+    ansible_ssh_private_key_file: "{{ ssh_key_path }}"
+    ansible_ssh_common_args: >
+      -o CertificateFile={{ ssh_key_path }}-cert.pub
+      -o IdentitiesOnly=yes
+
+# ---- Env secrets ----
+
+- name: Login to Vault (env secrets)
+  community.hashi_vault.vault_login:
+    auth_method: approle
+    role_id: "{{ vault_env_role_id }}"
+    secret_id: "{{ vault_env_secret_id }}"
+  register: vault_env_login
+  delegate_to: localhost
+  run_once: true
+
+- name: Read app secrets from Vault
+  community.hashi_vault.vault_read:
+    path: "{{ vault_path_app }}"
+    token: "{{ vault_env_login.login.auth.client_token }}"
+  register: vault_app_data
+  delegate_to: localhost
+  run_once: true
+
+- name: Read DB secrets from Vault
+  community.hashi_vault.vault_read:
+    path: "{{ vault_path_db }}"
+    token: "{{ vault_env_login.login.auth.client_token }}"
+  register: vault_db_data
+  delegate_to: localhost
+  run_once: true
+
+- name: Extract DB vars for .env
+  set_fact:
+    db_user: "{{ vault_db_data.data.data.data.POSTGRES_USER | default('postgres', true) | trim }}"
+    db_pass: "{{ vault_db_data.data.data.data.POSTGRES_PASSWORD | trim }}"
+    db_host: "satelitemonitor-db"
+    db_port: "5432"
+    db_name: "{{ vault_db_data.data.data.data.POSTGRES_DB | default('superapps_monitor', true) | trim }}"
+    db_port_host: "{{ vault_db_data.data.data.data.POSTGRES_PORT | default('5432', true) | trim }}"
+    db_schema: "public"

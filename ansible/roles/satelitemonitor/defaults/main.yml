@@ -1,0 +1,30 @@
+---
+# App
+app_dir: /opt/satelitemonitor
+compose_project_name: satelitemonitor
+registry: "{{ lookup('env', 'REGISTRY') }}"
+registry_host: "{{ (lookup('env', 'REGISTRY') | default('')).split('/')[0] }}"
+tag_app: "{{ lookup('env', 'TAG_APP') }}"
+should_deploy_db: "{{ lookup('env', 'SHOULD_DEPLOY_DB') | default('false', true) }}"
+
+# Harbor
+harbor_username: "{{ lookup('env', 'HARBOR_USERNAME') }}"
+harbor_password: "{{ lookup('env', 'HARBOR_PASSWORD') }}"
+
+# Vault
+vault_addr: "{{ lookup('env', 'VAULT_ADDR') | default('https://vault.kemenkum.go.id:8200', true) }}"
+vault_path_app: "{{ lookup('env', 'VAULT_PATH_APP') }}"
+vault_path_db: "{{ lookup('env', 'VAULT_PATH_DB') }}"
+
+# Vault AppRole for SSH CA
+vault_ssh_role_id: "{{ lookup('env', 'VAULT_SSH_ROLE_ID') }}"
+vault_ssh_secret_id: "{{ lookup('env', 'VAULT_SSH_SECRET_ID') }}"
+
+# Vault AppRole for env secrets
+vault_env_role_id: "{{ lookup('env', 'VAULT_ENV_ROLE_ID') }}"
+vault_env_secret_id: "{{ lookup('env', 'VAULT_ENV_SECRET_ID') }}"
+
+# SSH CA
+ssh_user: ansible
+ssh_key_type: ed25519
+vault_ssh_role: ansible
