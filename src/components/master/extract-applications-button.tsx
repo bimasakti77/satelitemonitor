@@ -22,13 +22,18 @@ export function ExtractApplicationsButton() {
       const result = await extractApplicationsFromServices();
       setConfirming(false);
 
-      if (!result.success) {
-        toast.error(result.error ?? "Gagal mengekstrak data aplikasi");
+      if (!result.success || !result.data) {
+        toast.error(
+          !result.success
+            ? (result.error ?? "Gagal mengekstrak data aplikasi")
+            : "Gagal mengekstrak data aplikasi"
+        );
         return;
       }
 
+      const { count, publicCount, internalCount } = result.data;
       toast.success(
-        `Berhasil generate ${result.data.count} aplikasi (${result.data.publicCount} publik, ${result.data.internalCount} internal)`
+        `Berhasil generate ${count} aplikasi (${publicCount} publik, ${internalCount} internal)`
       );
       router.refresh();
     });
