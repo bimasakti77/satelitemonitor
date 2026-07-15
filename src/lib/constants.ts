@@ -21,6 +21,19 @@ export const INTEGRATION_LABELS = {
   NOT_READY: "Belum Siap",
 } as const;
 
+/** Opsi tahun pekerjaan untuk filter & inline edit di semua menu. */
+export const TAHUN_OPTIONS = [2025, 2026, 2027, 2028] as const;
+
+export type TahunOption = (typeof TAHUN_OPTIONS)[number];
+
+export function mergeTahunOptions(...extraYears: Array<number | null | undefined>): number[] {
+  const years = new Set<number>([...TAHUN_OPTIONS]);
+  for (const year of extraYears) {
+    if (typeof year === "number" && !Number.isNaN(year)) years.add(year);
+  }
+  return Array.from(years).sort((a, b) => a - b);
+}
+
 export const SERVICE_FIELD_LABELS: Record<string, string> = {
   ukeId: "UKE I",
   tahunPekerjaan: "Tahun Pekerjaan",

@@ -17,7 +17,7 @@ import {
 import { Plus, Trash2 } from "lucide-react";
 import { createService, updateService } from "@/lib/actions/services";
 import type { ActionResult } from "@/lib/actions/auth";
-import { INTEGRATION_LABELS, SCOPE_LABELS } from "@/lib/constants";
+import { INTEGRATION_LABELS, SCOPE_LABELS, mergeTahunOptions } from "@/lib/constants";
 
 interface Option {
   id: string;
@@ -128,13 +128,20 @@ export function ServiceForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="tahunPekerjaan">Tahun Pekerjaan</Label>
-          <Input
+          <NativeSelect
             id="tahunPekerjaan"
             name="tahunPekerjaan"
-            type="number"
-            defaultValue={service?.tahunPekerjaan ?? new Date().getFullYear()}
+            defaultValue={String(
+              service?.tahunPekerjaan ?? new Date().getFullYear()
+            )}
             required
-          />
+          >
+            {mergeTahunOptions(service?.tahunPekerjaan).map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </NativeSelect>
         </div>
       </div>
 

@@ -230,8 +230,10 @@ export function ExecutiveUkeChart({
 
 export function IntegrationQuarterChart({
   data,
+  onBarClick,
 }: {
   data: { key: string; label: string; count: number }[];
+  onBarClick?: (entry: { key: string; label: string; count: number }) => void;
 }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -254,7 +256,19 @@ export function IntegrationQuarterChart({
           }}
           formatter={(value) => [`${value} layanan`, "Jumlah"]}
         />
-        <Bar dataKey="count" radius={[8, 8, 0, 0]} barSize={48}>
+        <Bar
+          dataKey="count"
+          radius={[8, 8, 0, 0]}
+          barSize={48}
+          cursor={onBarClick ? "pointer" : undefined}
+          onClick={(state) => {
+            if (!onBarClick) return;
+            const payload = state?.payload as
+              | { key: string; label: string; count: number }
+              | undefined;
+            if (payload?.key) onBarClick(payload);
+          }}
+        >
           {data.map((entry) => (
             <Cell key={entry.key} fill={QUARTER_COLORS[entry.key] ?? CHART_COLORS[0]} />
           ))}

@@ -29,14 +29,11 @@ import {
   deleteAllServices,
   updateServiceTahunPekerjaan,
 } from "@/lib/actions/services";
-import { INTEGRATION_LABELS, SCOPE_LABELS } from "@/lib/constants";
+import { INTEGRATION_LABELS, SCOPE_LABELS, mergeTahunOptions } from "@/lib/constants";
 import type { ServiceScope, IntegrationReadiness } from "@prisma/client";
 
-const TAHUN_OPTIONS = [2026, 2027, 2028] as const;
-
 function getTahunSelectOptions(current: number) {
-  const years = new Set<number>([...TAHUN_OPTIONS, current]);
-  return Array.from(years).sort((a, b) => a - b);
+  return mergeTahunOptions(current);
 }
 
 interface ServiceItem {
@@ -98,11 +95,11 @@ export function ServicesTable({
   const namaAplikasiFilter = searchParams.get("namaAplikasi") ?? "all";
 
   const tahunFilterOptions = (() => {
-    const years = new Set<number>([...TAHUN_OPTIONS]);
-    if (tahunFilter !== "all" && !Number.isNaN(Number(tahunFilter))) {
-      years.add(Number(tahunFilter));
-    }
-    return Array.from(years).sort((a, b) => a - b);
+    const selected =
+      tahunFilter !== "all" && !Number.isNaN(Number(tahunFilter))
+        ? Number(tahunFilter)
+        : undefined;
+    return mergeTahunOptions(selected);
   })();
 
   const namaAplikasiSelectOptions = useMemo(() => {

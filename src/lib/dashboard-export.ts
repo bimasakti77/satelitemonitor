@@ -76,7 +76,16 @@ export function exportDashboardExcel(
   ];
 
   const detail = [
-    ["No", "UKE", "Kelompok Layanan", "Jenis Layanan", "Tahun", "Tipe", "Kesiapan"],
+    [
+      "No",
+      "UKE",
+      "Kelompok Layanan",
+      "Jenis Layanan",
+      "Tahun",
+      "Tipe",
+      "SuperApps",
+      "Kesiapan",
+    ],
     ...data.services.map((s, i) => [
       i + 1,
       s.ukeCode ?? "-",
@@ -84,6 +93,7 @@ export function exportDashboardExcel(
       s.jenisLayanan,
       s.tahunPekerjaan,
       SCOPE_LABELS[s.scope],
+      s.sudahSuperApps ? "Sudah" : "Belum",
       INTEGRATION_LABELS[s.kesiapanIntegrasi],
     ]),
   ];
@@ -121,7 +131,7 @@ export function exportDashboardPdf(data: ExecutiveDashboardData, filterLabel: st
   doc.setFontSize(13);
   doc.text(APP_NAME, 14, 14);
   doc.setFontSize(10);
-  doc.text("Dashboard — Layanan Belum SuperApps", 14, 20);
+  doc.text("Dashboard Eksekutif", 14, 20);
   doc.setFontSize(8);
   doc.text(`${filterLabel}  |  Dicetak: ${generated}`, 14, 26);
 

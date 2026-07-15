@@ -2,13 +2,15 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
-import { INTEGRATION_LABELS } from "@/lib/constants";
+import { INTEGRATION_LABELS, mergeTahunOptions } from "@/lib/constants";
 import type { IntegrationReadiness, Prisma, ServiceScope } from "@prisma/client";
 
 export interface DashboardFilters {
   tahunPekerjaan?: number;
   ukeId?: string;
   scope?: ServiceScope;
+  /** undefined = semua; true = sudah; false = belum */
+  sudahSuperApps?: boolean;
 }
 
 export interface DashboardServiceItem {
@@ -76,7 +78,9 @@ function jenisLayananDistinctKey(kelompokLayanan: string, jenisLayanan: string):
 function buildBaseWhere(filters: DashboardFilters): Prisma.ServiceWhereInput {
   return {
     isDeleted: false,
-    sudahSuperApps: false,
+    ...(filters.sudahSuperApps !== undefined
+      ? { sudahSuperApps: filters.sudahSuperApps }
+      : {}),
     ...(filters.ukeId ? { ukeId: filters.ukeId } : {}),
     ...(filters.scope ? { scope: filters.scope } : {}),
   };
@@ -267,7 +271,7 @@ export async function getExecutiveDashboard(
   const totalAplikasiInternal = namaAplikasiList.length - totalAplikasiPublik;
 
   return {
-    years: yearRows.map((r) => r.tahunPekerjaan),
+    years: mergeTahunOptions(...yearRows.map((r) => r.tahunPekerjaan)),
     summary: {
       totalServices: items.length,
       totalKelompok: kelompokSet.size,

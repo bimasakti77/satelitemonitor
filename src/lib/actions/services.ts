@@ -7,7 +7,7 @@ import { createAuditLog } from "@/lib/audit";
 import { recordServiceHistory, recordServiceFieldChanges } from "@/lib/service-history";
 import { createServiceNotification } from "@/lib/notifications";
 import { serviceSchema, type ServiceInput } from "@/lib/validations";
-import { SERVICE_FIELD_LABELS } from "@/lib/constants";
+import { SERVICE_FIELD_LABELS, TAHUN_OPTIONS, type TahunOption } from "@/lib/constants";
 import type { ActionResult } from "./auth";
 import type { Prisma } from "@prisma/client";
 
@@ -285,7 +285,7 @@ export async function updateService(
   return { success: true };
 }
 
-const INLINE_TAHUN_OPTIONS = [2026, 2027, 2028] as const;
+const INLINE_TAHUN_OPTIONS = TAHUN_OPTIONS;
 
 export async function updateServiceTahunPekerjaan(
   id: string,
@@ -293,7 +293,7 @@ export async function updateServiceTahunPekerjaan(
 ): Promise<ActionResult> {
   const session = await requireRole(["ADMINISTRATOR", "OPERATOR_UKE"]);
 
-  if (!INLINE_TAHUN_OPTIONS.includes(tahunPekerjaan as (typeof INLINE_TAHUN_OPTIONS)[number])) {
+  if (!INLINE_TAHUN_OPTIONS.includes(tahunPekerjaan as TahunOption)) {
     return { success: false, error: "Tahun pekerjaan tidak valid" };
   }
 

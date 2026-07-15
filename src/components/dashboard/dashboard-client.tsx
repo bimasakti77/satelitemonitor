@@ -8,6 +8,7 @@ import {
   Building2,
   Calendar,
   FileSpreadsheet,
+  Filter,
   Layers,
   ListTree,
   Loader2,
@@ -28,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -68,6 +70,7 @@ interface DashboardClientProps {
   data: ExecutiveDashboardData;
   selectedTahun: string;
   selectedScope: string;
+  selectedSuperApps: string;
   serverHealth: ServerHealthResult[];
 }
 
@@ -146,6 +149,88 @@ function NamaAplikasiDialog({
 
 function jenisLayananDistinctKey(kelompokLayanan: string, jenisLayanan: string): string {
   return `${kelompokLayanan.toLowerCase().trim()}|${jenisLayanan.toLowerCase().trim()}`;
+}
+
+function IntegrationServicesDialog({
+  selected,
+  services,
+  onOpenChange,
+}: {
+  selected: { key: string; label: string } | null;
+  services: DashboardServiceItem[];
+  onOpenChange: (open: boolean) => void;
+}) {
+  const modalItems = useMemo(() => {
+    if (!selected) return [];
+
+    return services
+      .filter((service) => service.kesiapanIntegrasi === selected.key)
+      .sort(
+        (a, b) =>
+          (a.ukeCode ?? "").localeCompare(b.ukeCode ?? "") ||
+          a.kelompokLayanan.localeCompare(b.kelompokLayanan) ||
+          a.jenisLayanan.localeCompare(b.jenisLayanan)
+      );
+  }, [services, selected]);
+
+  return (
+    <Dialog open={selected !== null} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[85vh] max-w-3xl flex-col gap-4">
+        <DialogHeader>
+          <DialogTitle>Kesiapan Integrasi — {selected?.label}</DialogTitle>
+          <DialogDescription>
+            {modalItems.length} layanan dengan target {selected?.label}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-border">
+          {modalItems.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Tidak ada layanan untuk kesiapan ini
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">No</TableHead>
+                  <TableHead>UKE</TableHead>
+                  <TableHead>Kelompok Layanan</TableHead>
+                  <TableHead>Jenis Layanan</TableHead>
+                  <TableHead>Tahun</TableHead>
+                  <TableHead>Tipe</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {modalItems.map((service, index) => (
+                  <TableRow key={service.id}>
+                    <TableCell className="text-muted-foreground">{index + 1}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {service.ukeCode ?? "-"}
+                    </TableCell>
+                    <TableCell className="max-w-[140px] truncate">
+                      {service.kelompokLayanan}
+                    </TableCell>
+                    <TableCell className="max-w-[240px] font-medium">
+                      <Link
+                        href={`/services/${service.id}`}
+                        className="hover:text-primary hover:underline"
+                      >
+                        {service.jenisLayanan}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{service.tahunPekerjaan}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{SCOPE_LABELS[service.scope]}</Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function UkeJenisLayananCards({
@@ -315,6 +400,7 @@ function ServicesTableSection({
         s.jenisLayanan,
         String(s.tahunPekerjaan),
         SCOPE_LABELS[s.scope],
+        s.sudahSuperApps ? "sudah" : "belum",
         INTEGRATION_LABELS[s.kesiapanIntegrasi],
       ]
         .filter(Boolean)
@@ -423,6 +509,7 @@ function ServicesTableSection({
                 <TableHead>Jenis Layanan</TableHead>
                 <TableHead>Tahun</TableHead>
                 <TableHead>Tipe</TableHead>
+                <TableHead>SuperApps</TableHead>
                 <TableHead>Kesiapan</TableHead>
               </TableRow>
             </TableHeader>
@@ -445,6 +532,11 @@ function ServicesTableSection({
                   <TableCell>{s.tahunPekerjaan}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{SCOPE_LABELS[s.scope]}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={s.sudahSuperApps ? "success" : "warning"}>
+                      {s.sudahSuperApps ? "Sudah" : "Belum"}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant="secondary">
@@ -517,12 +609,17 @@ export function DashboardClient({
   data,
   selectedTahun,
   selectedScope,
+  selectedSuperApps,
   serverHealth,
 }: DashboardClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isFilterPending, startFilterTransition] = useTransition();
   const [namaAplikasiDialogOpen, setNamaAplikasiDialogOpen] = useState(false);
+  const [selectedIntegration, setSelectedIntegration] = useState<{
+    key: string;
+    label: string;
+  } | null>(null);
 
   const pushWithParams = (params: URLSearchParams) => {
     startFilterTransition(() => {
@@ -544,15 +641,37 @@ export function DashboardClient({
     pushWithParams(params);
   };
 
+  const updateSuperApps = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === "all") params.delete("sudahSuperApps");
+    else params.set("sudahSuperApps", value);
+    pushWithParams(params);
+  };
+
   const tahunLabel =
     selectedTahun === "all" ? "Semua Tahun" : `Tahun ${selectedTahun}`;
 
   const scopeLabel =
     selectedScope === "INTERNAL" || selectedScope === "EKSTERNAL"
       ? SCOPE_LABELS[selectedScope]
-      : null;
+      : "Semua Tipe";
 
-  const filterLabel = ["Belum SuperApps", tahunLabel, scopeLabel].filter(Boolean).join(" · ");
+  const superAppsLabel =
+    selectedSuperApps === "true"
+      ? "Sudah SuperApps"
+      : selectedSuperApps === "false"
+        ? "Belum SuperApps"
+        : "Semua Status SuperApps";
+
+  const filterLabel = [superAppsLabel, tahunLabel, scopeLabel].join(" · ");
+  const hasActiveFilter =
+    selectedSuperApps !== "all" ||
+    selectedTahun !== "all" ||
+    selectedScope !== "all";
+
+  const resetFilters = () => {
+    pushWithParams(new URLSearchParams());
+  };
 
   const handleExportExcel = () => {
     try {
@@ -582,96 +701,169 @@ export function DashboardClient({
     <div className="space-y-8">
       <ServerHealthPanel initialHealth={serverHealth} />
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-foreground">{filterLabel}</p>
-          <p className="text-xs text-muted-foreground">
-            Hanya menampilkan layanan yang belum masuk SuperApps
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            value={selectedTahun}
-            onValueChange={updateTahun}
-            disabled={isFilterPending}
-          >
-            <SelectTrigger className="w-[180px]">
-              {isFilterPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin text-primary" />
-              ) : (
-                <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
+      <Card className="border-primary/20 bg-gradient-to-br from-primary/[0.04] via-background to-background shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-1">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Filter className="h-4 w-4" />
+                </span>
+                Filter Dashboard
+              </CardTitle>
+              <CardDescription>
+                Atur tampilan chart dan daftar layanan berdasarkan status SuperApps,
+                tahun pekerjaan, dan tipe layanan.
+              </CardDescription>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {hasActiveFilter && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={resetFilters}
+                  disabled={isFilterPending}
+                >
+                  Reset
+                </Button>
               )}
-              <SelectValue placeholder="Tahun Pekerjaan" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Tahun</SelectItem>
-              {data.years.map((year) => (
-                <SelectItem key={year} value={String(year)}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-2">
-            <span className="text-sm font-medium text-foreground">Tipe:</span>
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="dashboard-scope-filter"
-                  checked={selectedScope === "all"}
-                  onChange={() => updateScope("all")}
-                  disabled={isFilterPending}
-                  className="h-4 w-4 accent-primary"
-                />
-                Semua
-              </label>
-              <label className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="dashboard-scope-filter"
-                  checked={selectedScope === "INTERNAL"}
-                  onChange={() => updateScope("INTERNAL")}
-                  disabled={isFilterPending}
-                  className="h-4 w-4 accent-primary"
-                />
-                Internal
-              </label>
-              <label className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="dashboard-scope-filter"
-                  checked={selectedScope === "EKSTERNAL"}
-                  onChange={() => updateScope("EKSTERNAL")}
-                  disabled={isFilterPending}
-                  className="h-4 w-4 accent-primary"
-                />
-                Eksternal
-              </label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleExportExcel}
+                disabled={isFilterPending}
+              >
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Excel
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleExportPdf}
+                disabled={isFilterPending}
+              >
+                <Printer className="mr-2 h-4 w-4" />
+                PDF
+              </Button>
             </div>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleExportExcel}
-            disabled={isFilterPending}
-          >
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
-            Export Excel
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleExportPdf}
-            disabled={isFilterPending}
-          >
-            <Printer className="mr-2 h-4 w-4" />
-            Export PDF
-          </Button>
-        </div>
-      </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/80 bg-background/80 px-3 py-2">
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Aktif
+            </span>
+            <Badge variant={selectedSuperApps === "all" ? "secondary" : "default"}>
+              {superAppsLabel}
+            </Badge>
+            <Badge variant={selectedTahun === "all" ? "secondary" : "default"}>
+              {tahunLabel}
+            </Badge>
+            <Badge variant={selectedScope === "all" ? "secondary" : "default"}>
+              {scopeLabel}
+            </Badge>
+            {isFilterPending && (
+              <span className="ml-auto inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Memuat...
+              </span>
+            )}
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2 rounded-xl border border-border bg-background p-3">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Status SuperApps
+              </Label>
+              <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
+                {(
+                  [
+                    { value: "all", label: "Semua" },
+                    { value: "true", label: "Sudah" },
+                    { value: "false", label: "Belum" },
+                  ] as const
+                ).map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    disabled={isFilterPending}
+                    onClick={() => updateSuperApps(option.value)}
+                    className={cn(
+                      "rounded-md px-2 py-2 text-sm font-medium transition-colors",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      "disabled:pointer-events-none disabled:opacity-50",
+                      selectedSuperApps === option.value
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2 rounded-xl border border-border bg-background p-3">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Tahun Pekerjaan
+              </Label>
+              <Select
+                value={selectedTahun}
+                onValueChange={updateTahun}
+                disabled={isFilterPending}
+              >
+                <SelectTrigger className="w-full">
+                  <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="Pilih tahun" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Tahun</SelectItem>
+                  {data.years.map((year) => (
+                    <SelectItem key={year} value={String(year)}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2 rounded-xl border border-border bg-background p-3">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Tipe Layanan
+              </Label>
+              <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
+                {(
+                  [
+                    { value: "all", label: "Semua" },
+                    { value: "INTERNAL", label: "Internal" },
+                    { value: "EKSTERNAL", label: "Eksternal" },
+                  ] as const
+                ).map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    disabled={isFilterPending}
+                    onClick={() => updateScope(option.value)}
+                    className={cn(
+                      "rounded-md px-2 py-2 text-sm font-medium transition-colors",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      "disabled:pointer-events-none disabled:opacity-50",
+                      selectedScope === option.value
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="relative">
         {isFilterPending && (
@@ -699,7 +891,7 @@ export function DashboardClient({
         <div className="grid gap-4 lg:grid-cols-2">
           <ChartCard
             title="Layanan per UKE I"
-            description="Jumlah layanan belum SuperApps per unit kerja"
+            description="Jumlah layanan sesuai filter aktif per unit kerja"
             contentClassName="p-6 pt-0"
           >
             <div style={{ height: ukeChartHeight }}>
@@ -714,10 +906,15 @@ export function DashboardClient({
           </ChartCard>
           <ChartCard
             title="Kesiapan Integrasi"
-            description="Distribusi target integrasi Q1, Q2, dan Q3"
+            description="Distribusi target integrasi Q1, Q2, dan Q3 — klik batang untuk lihat daftar layanan"
           >
             {data.summary.totalServices > 0 ? (
-              <IntegrationQuarterChart data={data.chartByIntegration} />
+              <IntegrationQuarterChart
+                data={data.chartByIntegration}
+                onBarClick={(entry) =>
+                  setSelectedIntegration({ key: entry.key, label: entry.label })
+                }
+              />
             ) : (
               <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
                 Tidak ada data
@@ -741,6 +938,14 @@ export function DashboardClient({
           </div>
         </ChartCard>
       </section>
+
+      <IntegrationServicesDialog
+        selected={selectedIntegration}
+        services={data.services}
+        onOpenChange={(open) => {
+          if (!open) setSelectedIntegration(null);
+        }}
+      />
 
       {/* 2. Summary cards */}
       <section className="space-y-4">

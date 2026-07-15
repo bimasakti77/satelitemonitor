@@ -16,17 +16,24 @@ async function DashboardContent({ searchParams }: PageProps) {
 
   const selectedTahun = params.tahun ?? "all";
   const selectedScope = params.scope ?? "all";
+  const selectedSuperApps = params.sudahSuperApps ?? "all";
   const tahunPekerjaan =
     selectedTahun !== "all" && params.tahun ? Number(params.tahun) : undefined;
   const scope =
     selectedScope === "INTERNAL" || selectedScope === "EKSTERNAL"
       ? selectedScope
       : undefined;
+  const sudahSuperApps =
+    selectedSuperApps === "true"
+      ? true
+      : selectedSuperApps === "false"
+        ? false
+        : undefined;
 
   const ukeId = getOperatorUkeFilter(session);
 
   const [data, serverHealth] = await Promise.all([
-    getExecutiveDashboard({ tahunPekerjaan, ukeId, scope }),
+    getExecutiveDashboard({ tahunPekerjaan, ukeId, scope, sudahSuperApps }),
     getServerHealthStatuses(),
   ]);
 
@@ -35,6 +42,7 @@ async function DashboardContent({ searchParams }: PageProps) {
       data={data}
       selectedTahun={selectedTahun}
       selectedScope={selectedScope}
+      selectedSuperApps={selectedSuperApps}
       serverHealth={serverHealth}
     />
   );
@@ -45,7 +53,7 @@ export default function DashboardPage({ searchParams }: PageProps) {
     <div className="space-y-6">
       <PageHeader
         title="Dashboard Eksekutif"
-        description="Monitoring layanan belum masuk SuperApps — kesiapan integrasi lintas UKE I"
+        description="Monitoring layanan SuperApps — kesiapan integrasi lintas UKE I"
       />
       <Suspense fallback={<Skeleton className="h-[600px] w-full" />}>
         <DashboardContent searchParams={searchParams} />
