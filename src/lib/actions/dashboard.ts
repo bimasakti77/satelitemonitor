@@ -53,7 +53,11 @@ export interface ExecutiveDashboardData {
   namaAplikasiList: { name: string; isPublic: boolean }[];
   chartByUke: { code: string; name: string; count: number }[];
   jenisLayananByUke: { code: string; name: string; count: number }[];
-  chartByIntegration: { key: "Q1" | "Q2" | "Q3"; label: string; count: number }[];
+  chartByIntegration: {
+    key: "Q1" | "Q2" | "Q3" | "NOT_READY";
+    label: string;
+    count: number;
+  }[];
   chartIntegrationByUke: {
     code: string;
     name: string;
@@ -68,7 +72,7 @@ export interface ExecutiveDashboardData {
   services: DashboardServiceItem[];
 }
 
-const INTEGRATION_CHART_ORDER = ["Q1", "Q2", "Q3"] as const;
+const INTEGRATION_CHART_ORDER = ["Q1", "Q2", "Q3", "NOT_READY"] as const;
 
 /** Unik per kombinasi kelompok + jenis (nama jenis bisa sama di kelompok berbeda). */
 function jenisLayananDistinctKey(kelompokLayanan: string, jenisLayanan: string): string {
@@ -228,11 +232,12 @@ export async function getExecutiveDashboard(
     })
     .sort((a, b) => a.totalJenis - b.totalJenis);
 
-  const integrationCounts = { Q1: 0, Q2: 0, Q3: 0 };
+  const integrationCounts = { Q1: 0, Q2: 0, Q3: 0, NOT_READY: 0 };
   for (const s of items) {
     if (s.kesiapanIntegrasi === "Q1") integrationCounts.Q1++;
     else if (s.kesiapanIntegrasi === "Q2") integrationCounts.Q2++;
     else if (s.kesiapanIntegrasi === "Q3") integrationCounts.Q3++;
+    else integrationCounts.NOT_READY++;
   }
 
   const chartByIntegration = INTEGRATION_CHART_ORDER.map((key) => ({

@@ -31,7 +31,7 @@ export const SUPERAPPS_ENVIRONMENTS: SuperAppsEnvironment[] = [
   {
     key: "production",
     label: "Production",
-    url: "https://pasti.kemenkum.go.id/",
+    url: "https://pasti.kemenkum.go.id",
   },
 ];
 

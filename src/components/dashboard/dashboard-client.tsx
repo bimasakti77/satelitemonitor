@@ -906,7 +906,7 @@ export function DashboardClient({
           </ChartCard>
           <ChartCard
             title="Kesiapan Integrasi"
-            description="Distribusi target integrasi Q1, Q2, dan Q3 — klik batang untuk lihat daftar layanan"
+            description="Distribusi Q1, Q2, Q3, dan Belum Siap — klik batang untuk lihat daftar layanan"
           >
             {data.summary.totalServices > 0 ? (
               <IntegrationQuarterChart

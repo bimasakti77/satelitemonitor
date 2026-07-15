@@ -145,6 +145,7 @@ const QUARTER_COLORS: Record<string, string> = {
   Q1: "#22c55e",
   Q2: "#f59e0b",
   Q3: "#3b82f6",
+  NOT_READY: "#94a3b8",
 };
 
 const CHART_COUNT_LABEL_COLOR = "#111827";
@@ -259,7 +260,7 @@ export function IntegrationQuarterChart({
         <Bar
           dataKey="count"
           radius={[8, 8, 0, 0]}
-          barSize={48}
+          barSize={42}
           cursor={onBarClick ? "pointer" : undefined}
           onClick={(state) => {
             if (!onBarClick) return;
