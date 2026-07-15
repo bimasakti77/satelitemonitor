@@ -33,8 +33,8 @@ export default async function RootLayout({
       <body className="min-h-full antialiased">
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
-          enableSystem
+          defaultTheme="light"
+          enableSystem={false}
           disableTransitionOnChange
         >
           {children}

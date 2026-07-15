@@ -2,7 +2,11 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
-import { INTEGRATION_LABELS, mergeTahunOptions } from "@/lib/constants";
+import {
+  INTEGRATION_LABELS,
+  TAHUN_OPTIONS,
+  mergeTahunOptions,
+} from "@/lib/constants";
 import type { IntegrationReadiness, Prisma, ServiceScope } from "@prisma/client";
 
 export interface DashboardFilters {
@@ -364,23 +368,112 @@ export async function getServicesByUke(ukeFilter?: string) {
     .sort((a, b) => b.count - a.count);
 }
 
-export async function getServicesByYear(ukeFilter?: string) {
+export type ProgressByYearItem = {
+  year: string;
+  total: number;
+  sudahSuperApps: number;
+  belumSuperApps: number;
+  progressPercent: number;
+  Q1: number;
+  Q2: number;
+  Q3: number;
+  NOT_READY: number;
+  INTERNAL: number;
+  EKSTERNAL: number;
+};
+
+/** Kondisi pembangunan per tahun pekerjaan (selalu include opsi tahun master). */
+export async function getServicesByYear(
+  ukeFilter?: string
+): Promise<ProgressByYearItem[]> {
   await requireAuth();
 
-  const services = await prisma.service.groupBy({
-    by: ["tahunPekerjaan"],
-    where: {
-      isDeleted: false,
-      ...(ukeFilter ? { ukeId: ukeFilter } : {}),
+  const where: Prisma.ServiceWhereInput = {
+    isDeleted: false,
+    ...(ukeFilter ? { ukeId: ukeFilter } : {}),
+  };
+
+  const services = await prisma.service.findMany({
+    where,
+    select: {
+      tahunPekerjaan: true,
+      sudahSuperApps: true,
+      kesiapanIntegrasi: true,
+      scope: true,
     },
-    _count: { id: true },
-    orderBy: { tahunPekerjaan: "asc" },
   });
 
-  return services.map((s) => ({
-    year: String(s.tahunPekerjaan),
-    count: s._count.id,
-  }));
+  const byYear = new Map<
+    number,
+    {
+      total: number;
+      sudahSuperApps: number;
+      Q1: number;
+      Q2: number;
+      Q3: number;
+      NOT_READY: number;
+      INTERNAL: number;
+      EKSTERNAL: number;
+    }
+  >();
+
+  for (const year of TAHUN_OPTIONS) {
+    byYear.set(year, {
+      total: 0,
+      sudahSuperApps: 0,
+      Q1: 0,
+      Q2: 0,
+      Q3: 0,
+      NOT_READY: 0,
+      INTERNAL: 0,
+      EKSTERNAL: 0,
+    });
+  }
+
+  for (const s of services) {
+    let bucket = byYear.get(s.tahunPekerjaan);
+    if (!bucket) {
+      bucket = {
+        total: 0,
+        sudahSuperApps: 0,
+        Q1: 0,
+        Q2: 0,
+        Q3: 0,
+        NOT_READY: 0,
+        INTERNAL: 0,
+        EKSTERNAL: 0,
+      };
+      byYear.set(s.tahunPekerjaan, bucket);
+    }
+
+    bucket.total++;
+    if (s.sudahSuperApps) bucket.sudahSuperApps++;
+    if (s.kesiapanIntegrasi === "Q1") bucket.Q1++;
+    else if (s.kesiapanIntegrasi === "Q2") bucket.Q2++;
+    else if (s.kesiapanIntegrasi === "Q3") bucket.Q3++;
+    else bucket.NOT_READY++;
+    if (s.scope === "INTERNAL") bucket.INTERNAL++;
+    else bucket.EKSTERNAL++;
+  }
+
+  return Array.from(byYear.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([year, b]) => {
+      const belumSuperApps = b.total - b.sudahSuperApps;
+      return {
+        year: String(year),
+        total: b.total,
+        sudahSuperApps: b.sudahSuperApps,
+        belumSuperApps,
+        progressPercent: b.total > 0 ? (b.sudahSuperApps / b.total) * 100 : 0,
+        Q1: b.Q1,
+        Q2: b.Q2,
+        Q3: b.Q3,
+        NOT_READY: b.NOT_READY,
+        INTERNAL: b.INTERNAL,
+        EKSTERNAL: b.EKSTERNAL,
+      };
+    });
 }
 
 export async function getIntegrationReadiness(ukeFilter?: string) {
