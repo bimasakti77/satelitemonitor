@@ -43,7 +43,15 @@ export const serviceSchema = z
     }
   });
 
+export const serviceFunctionApiSchema = z.object({
+  nama: z.string().min(1, "Nama API wajib diisi").max(200),
+  endpoint: z.string().max(500).optional().nullable(),
+  status: z.enum(["BELUM_TERSEDIA", "ON_PROGRESS", "SUDAH_TERSEDIA"]),
+  catatan: z.string().max(2000).optional().nullable(),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type UkeInput = z.infer<typeof ukeSchema>;
 export type ApplicationInput = z.infer<typeof applicationSchema>;
 export type ServiceInput = z.infer<typeof serviceSchema>;
+export type ServiceFunctionApiInput = z.infer<typeof serviceFunctionApiSchema>;

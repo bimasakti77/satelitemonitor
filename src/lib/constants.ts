@@ -21,6 +21,14 @@ export const INTEGRATION_LABELS = {
   NOT_READY: "Belum Siap",
 } as const;
 
+export const FUNCTION_API_STATUS_LABELS = {
+  BELUM_TERSEDIA: "Belum Tersedia",
+  ON_PROGRESS: "On Progress Develop",
+  SUDAH_TERSEDIA: "Sudah Tersedia",
+} as const;
+
+export type FunctionApiStatusKey = keyof typeof FUNCTION_API_STATUS_LABELS;
+
 /** Opsi tahun pekerjaan untuk filter & inline edit di semua menu. */
 export const TAHUN_OPTIONS = [2025, 2026, 2027, 2028] as const;
 

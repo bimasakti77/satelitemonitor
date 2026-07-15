@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { ServiceForm } from "@/components/services/service-form";
+import { ServiceFunctionApisPanel } from "@/components/services/service-function-apis";
 import { ServiceTimeline } from "@/components/services/service-timeline";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,8 @@ export default async function ServiceDetailPage({ params }: PageProps) {
       label: i.code ? `${i.code} - ${i.name}` : i.name,
     }));
 
+  const writable = canWrite(session.role);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -49,13 +52,13 @@ export default async function ServiceDetailPage({ params }: PageProps) {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="space-y-6">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Detail Layanan</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
                 <p className="text-muted-foreground">UKE I</p>
                 <p className="font-medium">{service.uke?.name ?? "-"}</p>
@@ -104,9 +107,14 @@ export default async function ServiceDetailPage({ params }: PageProps) {
             <div>
               <p className="text-muted-foreground mb-2">Daftar Fungsi Terkait Layanan</p>
               {service.fungsi.length > 0 ? (
-                <ul className="list-disc pl-5 space-y-1">
+                <ul className="list-disc space-y-1 pl-5">
                   {service.fungsi.map((f) => (
-                    <li key={f.id}>{f.nama}</li>
+                    <li key={f.id}>
+                      {f.nama}
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        ({f.apis.length} API)
+                      </span>
+                    </li>
                   ))}
                 </ul>
               ) : (
@@ -116,7 +124,7 @@ export default async function ServiceDetailPage({ params }: PageProps) {
           </CardContent>
         </Card>
 
-        {canWrite(session.role) && (
+        {writable && (
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Edit Layanan</CardTitle>
@@ -131,6 +139,8 @@ export default async function ServiceDetailPage({ params }: PageProps) {
           </Card>
         )}
       </div>
+
+      <ServiceFunctionApisPanel fungsi={service.fungsi} canEdit={writable} />
 
       <Card>
         <CardHeader>

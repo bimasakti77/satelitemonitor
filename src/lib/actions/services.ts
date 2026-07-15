@@ -98,6 +98,52 @@ function buildFungsiCreate(fungsi: string[]) {
   return fungsi.map((nama, sortOrder) => ({ nama, sortOrder }));
 }
 
+/** Sync daftar fungsi tanpa menghapus API yang sudah terkait (match by nama). */
+async function syncServiceFungsi(
+  tx: Prisma.TransactionClient,
+  serviceId: string,
+  fungsiNames: string[]
+) {
+  const names = fungsiNames.map((n) => n.trim()).filter(Boolean);
+  const existing = await tx.serviceFunction.findMany({
+    where: { serviceId },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  const keptIds = new Set<string>();
+
+  for (let i = 0; i < names.length; i++) {
+    const nama = names[i];
+    const match = existing.find(
+      (f) =>
+        !keptIds.has(f.id) &&
+        f.nama.trim().toLowerCase() === nama.toLowerCase()
+    );
+
+    if (match) {
+      keptIds.add(match.id);
+      if (match.nama !== nama || match.sortOrder !== i) {
+        await tx.serviceFunction.update({
+          where: { id: match.id },
+          data: { nama, sortOrder: i },
+        });
+      }
+    } else {
+      const created = await tx.serviceFunction.create({
+        data: { serviceId, nama, sortOrder: i },
+      });
+      keptIds.add(created.id);
+    }
+  }
+
+  const toDelete = existing.filter((f) => !keptIds.has(f.id)).map((f) => f.id);
+  if (toDelete.length > 0) {
+    await tx.serviceFunction.deleteMany({
+      where: { id: { in: toDelete } },
+    });
+  }
+}
+
 export async function getServices(filters: ServiceFilters = {}) {
   const session = await requireRole(["ADMINISTRATOR", "OPERATOR_UKE", "EXECUTIVE"]);
   const page = filters.page ?? 1;
@@ -141,7 +187,10 @@ export async function getServiceById(id: string) {
     where: { id },
     include: {
       uke: true,
-      fungsi: { orderBy: { sortOrder: "asc" } },
+      fungsi: {
+        orderBy: { sortOrder: "asc" },
+        include: { apis: { orderBy: { sortOrder: "asc" } } },
+      },
       histories: {
         orderBy: { createdAt: "desc" },
         include: { user: { select: { name: true, email: true } } },
@@ -244,16 +293,16 @@ export async function updateService(
   const { fungsi, ...data } = parsed.data;
   const previous = { ...existing };
 
-  const updated = await prisma.service.update({
-    where: { id },
-    data: {
-      ...data,
-      fungsi: {
-        deleteMany: {},
-        create: buildFungsiCreate(fungsi),
-      },
-    },
-    include: { fungsi: true },
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.service.update({
+      where: { id },
+      data,
+    });
+    await syncServiceFungsi(tx, id, fungsi);
+    return tx.service.findUniqueOrThrow({
+      where: { id },
+      include: { fungsi: true },
+    });
   });
 
   await recordServiceFieldChanges(

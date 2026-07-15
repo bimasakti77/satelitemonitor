@@ -38,6 +38,12 @@ enum ImportStatus {
   FAILED
 }
 
+enum FunctionApiStatus {
+  BELUM_TERSEDIA
+  ON_PROGRESS
+  SUDAH_TERSEDIA
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -119,7 +125,25 @@ model ServiceFunction {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  apis ServiceFunctionApi[]
+
   @@index([serviceId])
+}
+
+model ServiceFunctionApi {
+  id         String            @id @default(cuid())
+  functionId String
+  function   ServiceFunction   @relation(fields: [functionId], references: [id], onDelete: Cascade)
+  nama       String
+  endpoint   String?
+  status     FunctionApiStatus @default(BELUM_TERSEDIA)
+  catatan    String?           @db.Text
+  sortOrder  Int               @default(0)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@index([functionId])
+  @@index([status])
 }
 
 model ServiceHistory {

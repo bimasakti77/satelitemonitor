@@ -110,7 +110,14 @@ export function ServiceForm({
     setFungsiRows((rows) => rows.map((row, i) => (i === index ? value : row)));
 
   const FormContent = () => (
-    <form action={formAction} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+    <form
+      action={formAction}
+      className={
+        isEdit
+          ? "space-y-5"
+          : "max-h-[70vh] space-y-4 overflow-y-auto pr-2"
+      }
+    >
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="ukeId">UKE I</Label>
