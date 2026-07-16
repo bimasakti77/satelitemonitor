@@ -125,22 +125,24 @@ pipeline {
                             usernameVariable: 'HARBOR_USER',
                             passwordVariable: 'HARBOR_PASS'
                         )]) {
-                            def maxRetries = 3
-                            def attempt = 1
-                            while (attempt <= maxRetries) {
-                                def exitCode = sh(script: '''#!/bin/bash
-                                    set -eo pipefail
-                                    docker tag $REGISTRY/satelitemonitor-app:$TAG_APP $REGISTRY/satelitemonitor-app:latest
-                                    echo $HARBOR_PASS | docker login $REGISTRY -u $HARBOR_USER --password-stdin | tee -a "${STAGE_LOG}"
-                                    docker push $REGISTRY/satelitemonitor-app:$TAG_APP 2>&1 | tee -a "${STAGE_LOG}"
-                                    docker push $REGISTRY/satelitemonitor-app:latest 2>&1 | tee -a "${STAGE_LOG}"
-                                ''', returnStatus: true)
+                            script {
+                                def maxRetries = 3
+                                def attempt = 1
+                                while (attempt <= maxRetries) {
+                                    def exitCode = sh(script: '''#!/bin/bash
+                                        set -eo pipefail
+                                        docker tag $REGISTRY/satelitemonitor-app:$TAG_APP $REGISTRY/satelitemonitor-app:latest
+                                        echo $HARBOR_PASS | docker login $REGISTRY -u $HARBOR_USER --password-stdin | tee -a "${STAGE_LOG}"
+                                        docker push $REGISTRY/satelitemonitor-app:$TAG_APP 2>&1 | tee -a "${STAGE_LOG}"
+                                        docker push $REGISTRY/satelitemonitor-app:latest 2>&1 | tee -a "${STAGE_LOG}"
+                                    ''', returnStatus: true)
 
-                                if (exitCode == 0) { sh "docker logout $REGISTRY"; break }
+                                    if (exitCode == 0) { sh "docker logout $REGISTRY"; break }
 
-                                def isAuthError = sh(script: "grep -qiE 'unauthorized|authentication required|token expired' ${STAGE_LOG} && echo 'true' || echo 'false'", returnStdout: true).trim()
-                                if (isAuthError == 'true' && attempt < maxRetries) { echo "Auth error - retrying (${attempt}/${maxRetries})..."; sleep 5; attempt++ }
-                                else { error "Push failed" }
+                                    def isAuthError = sh(script: "grep -qiE 'unauthorized|authentication required|token expired' ${STAGE_LOG} && echo 'true' || echo 'false'", returnStdout: true).trim()
+                                    if (isAuthError == 'true' && attempt < maxRetries) { echo "Auth error - retrying (${attempt}/${maxRetries})..."; sleep 5; attempt++ }
+                                    else { error "Push failed" }
+                                }
                             }
                         }
                         sh "echo '=== Stage: Push App Image Completed ===' >> ${STAGE_LOG}"
