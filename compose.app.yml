@@ -40,6 +40,8 @@ services:
     depends_on:
       satelitemonitor-db:
         condition: service_healthy
+    volumes:
+      - app_data:/app/data
     ports:
       - "${APP_PORT:-3000}:3000"
     networks:
@@ -48,6 +50,8 @@ services:
 volumes:
   postgres_data:
     name: superapps_postgres_data
+  app_data:
+    name: satelitemonitor_app_data
 
 networks:
   app-satelitemonitor-network:
