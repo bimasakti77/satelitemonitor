@@ -109,7 +109,7 @@ export function ServiceForm({
   const updateFungsiRow = (index: number, value: string) =>
     setFungsiRows((rows) => rows.map((row, i) => (i === index ? value : row)));
 
-  const FormContent = () => (
+  const form = (
     <form
       action={formAction}
       className={
@@ -129,7 +129,9 @@ export function ServiceForm({
           >
             <option value="">Pilih UKE</option>
             {ukes.map((u) => (
-              <option key={u.id} value={u.id}>{u.label}</option>
+              <option key={u.id} value={u.id}>
+                {u.label}
+              </option>
             ))}
           </NativeSelect>
         </div>
@@ -188,7 +190,9 @@ export function ServiceForm({
             onChange={(e) => setScope(e.target.value)}
           >
             {Object.entries(SCOPE_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
+              <option key={k} value={k}>
+                {v}
+              </option>
             ))}
           </NativeSelect>
         </div>
@@ -215,7 +219,9 @@ export function ServiceForm({
             defaultValue={service?.kesiapanIntegrasi ?? "NOT_READY"}
           >
             {Object.entries(INTEGRATION_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
+              <option key={k} value={k}>
+                {v}
+              </option>
             ))}
           </NativeSelect>
         </div>
@@ -234,12 +240,20 @@ export function ServiceForm({
 
       <div className="space-y-2">
         <Label htmlFor="namaAplikasi">Nama Aplikasi Terkait</Label>
-        <Input id="namaAplikasi" name="namaAplikasi" defaultValue={service?.namaAplikasi ?? ""} />
+        <Input
+          id="namaAplikasi"
+          name="namaAplikasi"
+          defaultValue={service?.namaAplikasi ?? ""}
+        />
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="detailAplikasi">Detail Aplikasi Terkait</Label>
-        <TextArea id="detailAplikasi" name="detailAplikasi" defaultValue={service?.detailAplikasi} />
+        <TextArea
+          id="detailAplikasi"
+          name="detailAplikasi"
+          defaultValue={service?.detailAplikasi}
+        />
       </div>
 
       <div className="space-y-2">
@@ -283,7 +297,7 @@ export function ServiceForm({
   );
 
   if (isEdit) {
-    return <FormContent />;
+    return form;
   }
 
   return (
@@ -300,7 +314,7 @@ export function ServiceForm({
         <DialogHeader>
           <DialogTitle>Tambah Layanan</DialogTitle>
         </DialogHeader>
-        <FormContent />
+        {form}
       </DialogContent>
     </Dialog>
   );
