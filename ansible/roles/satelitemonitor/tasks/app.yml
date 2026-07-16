@@ -100,7 +100,6 @@
   command: docker image prune -af
 
 - name: Logout from Harbor
-  community.docker.docker_logout:
-    registry_url: "{{ registry_host }}"
+  command: docker logout "{{ registry_host }}"
   become: true
   ignore_errors: true
