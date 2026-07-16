@@ -124,6 +124,19 @@ export function isReadOnly(role: UserRole): boolean {
   return role === "EXECUTIVE";
 }
 
+/** Project Dossier: Admin full access, Executive read-only. */
+export function canAccessDossier(role: UserRole): boolean {
+  return role === "ADMINISTRATOR" || role === "EXECUTIVE";
+}
+
+export function canManageDossier(role: UserRole): boolean {
+  return role === "ADMINISTRATOR";
+}
+
+export async function requireDossierAccess(): Promise<SessionUser> {
+  return requireRole(["ADMINISTRATOR", "EXECUTIVE"]);
+}
+
 export function getOperatorUkeFilter(session: SessionUser): string | undefined {
   return session.role === "OPERATOR_UKE" && session.ukeId ? session.ukeId : undefined;
 }

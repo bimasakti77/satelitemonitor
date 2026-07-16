@@ -214,3 +214,147 @@ model Notification {
   @@index([isRead])
   @@index([createdAt])
 }
+
+/// ========== Project Dossier ==========
+
+enum DomainProgressStatus {
+  VERY_HIGH
+  NEEDS_STRENGTHENING
+  ACHIEVED
+}
+
+enum DossierTeamType {
+  STEERING
+  EXECUTING
+}
+
+enum DocumentCompleteness {
+  NOT_AVAILABLE
+  DRAFT
+  COMPLETE
+  VERIFIED
+}
+
+model ProjectProfile {
+  id                  String   @id @default(cuid())
+  title               String
+  subtitle            String?
+  background          String?  @db.Text
+  baselineYear        Int      @default(2026)
+  targetYear          Int      @default(2028)
+  targetMaturityLevel Int      @default(4)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model DossierDomain {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assessments DossierDomainAssessment[]
+}
+
+model DossierDomainAssessment {
+  id            String               @id @default(cuid())
+  domainId      String
+  domain        DossierDomain        @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  year          Int
+  maturityLevel Int                  @default(0)
+  status        DomainProgressStatus @default(NEEDS_STRENGTHENING)
+  remarks       String?              @db.Text
+  targetText    String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  evidences DossierDomainLevelEvidence[]
+
+  @@unique([domainId, year])
+  @@index([year])
+}
+
+/// Dokumen dukungan per level kematangan (1–5) pada assessment domain.
+model DossierDomainLevelEvidence {
+  id           String                   @id @default(cuid())
+  assessmentId String
+  assessment   DossierDomainAssessment  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  level        Int
+  title        String
+  notes        String?                  @db.Text
+  filename     String
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  storagePath  String
+  isActive     Boolean                  @default(true)
+  uploadedById String?
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  @@index([assessmentId, level])
+  @@index([isActive])
+}
+
+model DossierIndicator {
+  id                String   @id @default(cuid())
+  name              String
+  baselineCondition String   @db.Text
+  targetCondition   String   @db.Text
+  sortOrder         Int      @default(0)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model DossierRoadmapItem {
+  id          String   @id @default(cuid())
+  year        Int
+  title       String
+  description String?  @db.Text
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([year])
+}
+
+model DossierTeamMember {
+  id        String         @id @default(cuid())
+  name      String
+  roleTitle String
+  unit      String?
+  teamType  DossierTeamType
+  sortOrder Int            @default(0)
+  isActive  Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([teamType])
+}
+
+model DossierDocument {
+  id           String               @id @default(cuid())
+  category     String
+  title        String
+  description  String?              @db.Text
+  filename     String?
+  mimeType     String?
+  sizeBytes    Int?
+  storagePath  String?
+  completeness DocumentCompleteness @default(NOT_AVAILABLE)
+  notes        String?              @db.Text
+  sortOrder    Int                  @default(0)
+  isActive     Boolean              @default(true)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  @@index([category])
+  @@index([completeness])
+}

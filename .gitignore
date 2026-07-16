@@ -70,3 +70,9 @@ Desktop.ini
 
 # cursor (local agent state)
 .cursor/
+
+# uploaded domain evidence (keep folder structure)
+/data/domain-dukung/**
+!/data/domain-dukung/.gitkeep
+!/data/.gitkeep
+
