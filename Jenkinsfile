@@ -80,9 +80,9 @@ pipeline {
                             passwordVariable: 'HARBOR_PASS'
                         )]) {
                             sh '''#!/bin/bash
-                                set -eo pipefail
-                                echo $HARBOR_PASS | docker login $REGISTRY -u $HARBOR_USER --password-stdin
-                            '''
+                                        set -eo pipefail
+                                        echo $HARBOR_PASS | docker login $REGISTRY -u $HARBOR_USER --password-stdin
+                                    '''
                         }
                         sh "echo '=== Stage: Login to Harbor Completed ===' >> ${STAGE_LOG}"
                     }
@@ -104,7 +104,7 @@ pipeline {
                                     docker compose -f compose.app.yml build satelitemonitor-app 2>&1 | tee -a "${STAGE_LOG}"
                                 ''', returnStatus: true)
 
-                                if (exitCode == 0) { sh "echo '=== Stage: Build App Image Completed ===' >> ${STAGE_LOG}"; break }
+                                if (exitCode == 0) { sh "echo '=== Stage: Build App Image Completed ===' >> ${STAGE_LOG}"; sh "docker logout $REGISTRY"; break }
 
                                 def isNetworkError = sh(script: "grep -qiE 'TLS handshake timeout|failed to resolve source metadata|net/http|connection timed out|dial tcp' ${STAGE_LOG} && echo 'true' || echo 'false'", returnStdout: true).trim()
                                 if (isNetworkError == 'true' && attempt < maxRetries) { echo "Network error - retrying (${attempt}/${maxRetries})..."; sleep 5; attempt++ }
@@ -125,13 +125,25 @@ pipeline {
                             usernameVariable: 'HARBOR_USER',
                             passwordVariable: 'HARBOR_PASS'
                         )]) {
-                            sh '''#!/bin/bash
-                                set -eo pipefail
-                                docker tag $REGISTRY/satelitemonitor-app:$TAG_APP $REGISTRY/satelitemonitor-app:latest
-                                echo $HARBOR_PASS | docker login $REGISTRY -u $HARBOR_USER --password-stdin
-                                docker push $REGISTRY/satelitemonitor-app:$TAG_APP
-                                docker push $REGISTRY/satelitemonitor-app:latest
-                            '''
+                            script {
+                                def maxRetries = 3
+                                def attempt = 1
+                                while (attempt <= maxRetries) {
+                                    def exitCode = sh(script: '''#!/bin/bash
+                                        set -eo pipefail
+                                        docker tag $REGISTRY/satelitemonitor-app:$TAG_APP $REGISTRY/satelitemonitor-app:latest
+                                        echo $HARBOR_PASS | docker login $REGISTRY -u $HARBOR_USER --password-stdin | tee -a "${STAGE_LOG}"
+                                        docker push $REGISTRY/satelitemonitor-app:$TAG_APP 2>&1 | tee -a "${STAGE_LOG}"
+                                        docker push $REGISTRY/satelitemonitor-app:latest 2>&1 | tee -a "${STAGE_LOG}"
+                                    ''', returnStatus: true)
+
+                                    if (exitCode == 0) { sh "docker logout $REGISTRY"; break }
+
+                                    def isAuthError = sh(script: "grep -qiE 'unauthorized|authentication required|token expired' ${STAGE_LOG} && echo 'true' || echo 'false'", returnStdout: true).trim()
+                                    if (isAuthError == 'true' && attempt < maxRetries) { echo "Auth error - retrying (${attempt}/${maxRetries})..."; sleep 5; attempt++ }
+                                    else { error "Push failed" }
+                                }
+                            }
                         }
                         sh "echo '=== Stage: Push App Image Completed ===' >> ${STAGE_LOG}"
                     }
@@ -317,6 +329,7 @@ pipeline {
                         channel: '#app-satelitemonitor-pipeline',
                         message: "✅ *${APP_NAME} Deploy SUCCESS*\n\n" +
                             "*Server:* 172.16.1.143 (via Ansible)\n" +
+                            "*Image:* ${TAG_APP}\n" +
                             "*Build:* #${env.BUILD_NUMBER}\n" +
                             "*Branch:* ${env.APP_BRANCH}\n" +
                             "*Commit:* ${env.COMMIT} - ${env.COMMIT_MESSAGE}\n" +
