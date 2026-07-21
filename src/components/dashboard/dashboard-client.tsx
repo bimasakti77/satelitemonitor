@@ -147,8 +147,12 @@ function NamaAplikasiDialog({
   );
 }
 
-function jenisLayananDistinctKey(kelompokLayanan: string, jenisLayanan: string): string {
-  return `${kelompokLayanan.toLowerCase().trim()}|${jenisLayanan.toLowerCase().trim()}`;
+function jenisLayananDistinctKey(
+  kelompokLayanan: string,
+  jenisLayanan: string,
+  scope: DashboardServiceItem["scope"]
+): string {
+  return `${kelompokLayanan.toLowerCase().trim()}|${jenisLayanan.toLowerCase().trim()}|${scope}`;
 }
 
 function IntegrationServicesDialog({
@@ -250,7 +254,11 @@ function UkeJenisLayananCards({
     const map = new Map<string, DashboardServiceItem>();
     for (const service of services) {
       if (service.ukeCode !== selectedUke.code) continue;
-      const key = jenisLayananDistinctKey(service.kelompokLayanan, service.jenisLayanan);
+      const key = jenisLayananDistinctKey(
+        service.kelompokLayanan,
+        service.jenisLayanan,
+        service.scope
+      );
       if (!map.has(key)) map.set(key, service);
     }
 
@@ -289,7 +297,9 @@ function UkeJenisLayananCards({
                 </div>
               </div>
               <p className="mt-3 text-2xl font-bold tracking-tight">{uke.count}</p>
-              <p className="text-xs text-muted-foreground">kelompok + jenis unik</p>
+              <p className="text-xs text-muted-foreground">
+                kelompok + jenis + tipe unik
+              </p>
               <p className="mt-2 text-[10px] text-primary/80">Klik untuk detail</p>
             </button>
           </Card>
@@ -308,7 +318,7 @@ function UkeJenisLayananCards({
               {selectedUke?.code} — {selectedUke?.name}
             </DialogTitle>
             <DialogDescription>
-              {modalItems.length} kombinasi kelompok + jenis layanan unik
+              {modalItems.length} kombinasi kelompok + jenis + tipe layanan unik
             </DialogDescription>
           </DialogHeader>
 
@@ -924,7 +934,7 @@ export function DashboardClient({
         </div>
         <ChartCard
           title="Kesiapan Integrasi per UKE I"
-          description="Persentase jenis layanan (kelompok + jenis unik) per target Q1, Q2, dan Q3"
+          description="Persentase jenis layanan (kelompok + jenis + tipe unik) per target Q1, Q2, dan Q3"
           contentClassName="p-6 pt-0"
         >
           <div style={{ height: integrationByUkeHeight }}>
@@ -962,7 +972,7 @@ export function DashboardClient({
           <KpiCard
             title="Jumlah Jenis Layanan"
             value={data.summary.totalJenisLayanan}
-            description="Kombinasi kelompok + jenis unik"
+            description="Kombinasi kelompok + jenis + tipe unik"
             icon={ListTree}
           />
           <KpiCard
@@ -1002,7 +1012,7 @@ export function DashboardClient({
               Jenis Layanan per UKE I
             </h3>
             <p className="text-xs text-muted-foreground">
-              Jumlah kombinasi kelompok + jenis layanan unik di setiap unit kerja eselon I
+              Jumlah kombinasi kelompok + jenis + tipe layanan unik di setiap unit kerja eselon I
             </p>
             <UkeJenisLayananCards ukes={data.jenisLayananByUke} services={data.services} />
           </div>

@@ -78,9 +78,13 @@ export interface ExecutiveDashboardData {
 
 const INTEGRATION_CHART_ORDER = ["Q1", "Q2", "Q3", "NOT_READY"] as const;
 
-/** Unik per kombinasi kelompok + jenis (nama jenis bisa sama di kelompok berbeda). */
-function jenisLayananDistinctKey(kelompokLayanan: string, jenisLayanan: string): string {
-  return `${kelompokLayanan.toLowerCase().trim()}|${jenisLayanan.toLowerCase().trim()}`;
+/** Unik per kombinasi kelompok + jenis + tipe layanan. */
+function jenisLayananDistinctKey(
+  kelompokLayanan: string,
+  jenisLayanan: string,
+  scope: ServiceScope
+): string {
+  return `${kelompokLayanan.toLowerCase().trim()}|${jenisLayanan.toLowerCase().trim()}|${scope}`;
 }
 
 function buildBaseWhere(filters: DashboardFilters): Prisma.ServiceWhereInput {
@@ -160,7 +164,9 @@ export async function getExecutiveDashboard(
 
   const kelompokSet = new Set(items.map((s) => s.kelompokLayanan.toLowerCase().trim()));
   const jenisSet = new Set(
-    items.map((s) => jenisLayananDistinctKey(s.kelompokLayanan, s.jenisLayanan))
+    items.map((s) =>
+      jenisLayananDistinctKey(s.kelompokLayanan, s.jenisLayanan, s.scope)
+    )
   );
 
   const ukeCountMap = new Map<string, { code: string; name: string; count: number }>();
@@ -183,7 +189,11 @@ export async function getExecutiveDashboard(
       ukeCountMap.set(s.uke.id, { code: s.uke.code, name: s.uke.name, count: 1 });
     }
 
-    const jenisKey = jenisLayananDistinctKey(s.kelompokLayanan, s.jenisLayanan);
+    const jenisKey = jenisLayananDistinctKey(
+      s.kelompokLayanan,
+      s.jenisLayanan,
+      s.scope
+    );
     const jenisEntry = ukeJenisMap.get(s.uke.id) ?? {
       code: s.uke.code,
       name: s.uke.name,
